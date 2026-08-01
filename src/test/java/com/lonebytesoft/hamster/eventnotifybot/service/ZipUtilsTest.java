@@ -22,13 +22,13 @@ public class ZipUtilsTest {
         final JsonMapper jsonMapper = new JsonMapper();
 
         final byte[] original = jsonMapper.writeValueAsBytes(testData);
-        log.info("Original: {}", original.length);
+        log.debug("Original: {}", original.length);
 
         final byte[] compressed = ZipUtils.compress(original);
-        log.info("Compressed: {}", compressed.length);
+        log.debug("Compressed: {}", compressed.length);
 
         final byte[] decompressed = ZipUtils.decompress(compressed);
-        log.info("Decompressed: {}", decompressed.length);
+        log.debug("Decompressed: {}", decompressed.length);
 
         final Object decompressedData = jsonMapper.readValue(decompressed, Object.class);
         assertEquals(testData, decompressedData);

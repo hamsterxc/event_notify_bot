@@ -4,19 +4,14 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.lonebytesoft.hamster</groupId>
-    <artifactId>eventnotifybot</artifactId>
+    <artifactId>eventnotifybot-noop</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>25</java.version>
 
-        <aws.version>2.47.6</aws.version>
         <aws-lambda.version>1.4.0</aws-lambda.version>
-        <jackson.version>3.1.1</jackson.version>
-        <jsoup.version>1.22.1</jsoup.version>
-        <junit.version>6.0.3</junit.version>
-        <slf4j.version>2.0.17</slf4j.version>
     </properties>
 
     <build>
@@ -41,7 +36,7 @@
                 <version>3.6.2</version>
                 <configuration>
                     <createDependencyReducedPom>false</createDependencyReducedPom>
-                    <finalName>event-notify-bot</finalName>
+                    <finalName>event-notify-bot-noop</finalName>
                 </configuration>
                 <executions>
                     <execution>
@@ -61,52 +56,6 @@
             <artifactId>aws-lambda-java-core</artifactId>
             <version>${aws-lambda.version}</version>
         </dependency>
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>dynamodb</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.jsoup</groupId>
-            <artifactId>jsoup</artifactId>
-            <version>${jsoup.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>tools.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
-            <scope>compile</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-reload4j</artifactId>
-            <version>${slf4j.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>software.amazon.awssdk</groupId>
-                <artifactId>bom</artifactId>
-                <version>${aws.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
 </project>
