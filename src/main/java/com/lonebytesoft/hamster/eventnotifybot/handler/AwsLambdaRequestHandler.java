@@ -11,6 +11,7 @@ public class AwsLambdaRequestHandler implements RequestHandler<Void, Void> {
     @Override
     public Void handleRequest(Void input, Context context) {
         new LambdaHandler(
+                new TestJobHandler(),
                 Duration.ofSeconds(2),
                 Duration.ofSeconds(1),
                 Duration.ofSeconds(2)

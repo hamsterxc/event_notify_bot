@@ -5,6 +5,7 @@ import com.amazonaws.services.lambda.runtime.CognitoIdentity;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.lonebytesoft.hamster.eventnotifybot.handler.LambdaHandler;
+import com.lonebytesoft.hamster.eventnotifybot.handler.TestJobHandler;
 
 import java.time.Duration;
 
@@ -12,6 +13,7 @@ public class Test {
 
     static void main(String[] args) {
         new LambdaHandler(
+                new TestJobHandler(),
                 Duration.ofSeconds(2),
                 Duration.ofSeconds(5),
                 Duration.ofSeconds(1)

@@ -11,6 +11,7 @@ public class LambdaHandler {
 
     private static final Logger log = LoggerFactory.getLogger(LambdaHandler.class);
 
+    private final JobHandler jobHandler;
     /**
      * Time window to leave between the end of cycles execution and global lambda timeout.
      */
@@ -25,10 +26,12 @@ public class LambdaHandler {
     private final long cycleDurationMillis;
 
     public LambdaHandler(
+            final JobHandler jobHandler,
             final Duration executionBuffer,
             final Duration cyclePause,
             final Duration cycleDuration
     ) {
+        this.jobHandler = jobHandler;
         this.executionBuffer = executionBuffer;
         this.cyclePauseMillis = cyclePause.toMillis();
         this.cycleDurationMillis = cycleDuration.toMillis();
@@ -36,10 +39,6 @@ public class LambdaHandler {
 
     public void run(final Context context) {
         Stopwatch stopwatch = new Stopwatch(context, executionBuffer);
-
-        final JobHandler jobHandler = JobHandlerFactory.createJobHandler();
-        stopwatch = stopwatch.tick(context);
-        log.debug("Initialized in {} ms", stopwatch.duration());
 
         boolean isFirstCycle = true;
         while (stopwatch.remaining() > (isFirstCycle ? cycleDurationMillis : cycleDurationMillis + cyclePauseMillis)) {
