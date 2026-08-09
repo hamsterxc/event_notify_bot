@@ -3,6 +3,7 @@ package com.lonebytesoft.hamster.eventnotifybot.service;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.util.function.Function;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterOutputStream;
@@ -13,12 +14,20 @@ public class ZipUtils {
         throw new UnsupportedOperationException();
     }
 
-    public static byte[] compress(byte[] data) throws IOException {
-        return wrap(data, DeflaterOutputStream::new);
+    public static byte[] compress(byte[] data) {
+        try {
+            return wrap(data, DeflaterOutputStream::new);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not compress %d bytes".formatted(data.length), e);
+        }
     }
 
-    public static byte[] decompress(byte[] data) throws IOException {
-        return wrap(data, InflaterOutputStream::new);
+    public static byte[] decompress(byte[] data) {
+        try {
+            return wrap(data, InflaterOutputStream::new);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not decompress %d bytes".formatted(data.length), e);
+        }
     }
 
     private static byte[] wrap(

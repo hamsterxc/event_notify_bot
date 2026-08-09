@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -17,7 +16,7 @@ public class ZipUtilsTest {
     private static final Logger log = LoggerFactory.getLogger(ZipUtilsTest.class);
 
     @Test
-    public void test_compressDecompress() throws IOException {
+    public void test_compressDecompress() {
         final Object testData = getTestData();
         final JsonMapper jsonMapper = new JsonMapper();
 

@@ -17,7 +17,6 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -61,35 +60,24 @@ public class TestJobHandler implements JobHandler {
         // testing full scan
         final DynamoDbReadResponse readResponse = dynamoDbService.read();
         log.info("{}", readResponse);
-        readResponse.records().forEach(record -> {
-            try {
-                log.info("id={}, type={}, subject={}, time={}, data={}",
+        readResponse.records()
+                .forEach(record -> log.info("id={}, type={}, subject={}, time={}, data={}",
                         record.id(),
                         record.type(),
                         record.subject(),
                         DateTimeFormatter.ISO_DATE_TIME.format(Instant.ofEpochMilli(record.time()).atZone(ZoneId.systemDefault())),
-                        jsonMapper.readValue(ZipUtils.decompress(record.data()), Map.class));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
+                        jsonMapper.readValue(ZipUtils.decompress(record.data()), Map.class)));
         log.info("Scan consumed capacity: {}", readResponse.consumedCapacity());
 
         // testing bulk write
         final List<DynamoDbWriteRequest> writeRequests = IntStream.range(0, 5)
-                .mapToObj(i -> {
-                    try {
-                        return DynamoDbWriteRequest.put(new DynamoDbRecord(
-                                String.valueOf(i),
-                                "test",
-                                String.valueOf(i + 1000),
-                                System.currentTimeMillis(),
-                                ZipUtils.compress(jsonMapper.writeValueAsBytes(Map.of("attribute", i)))
-                        ));
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
+                .mapToObj(i -> DynamoDbWriteRequest.put(new DynamoDbRecord(
+                        String.valueOf(i),
+                        "test",
+                        String.valueOf(i + 1000),
+                        System.currentTimeMillis(),
+                        ZipUtils.compress(jsonMapper.writeValueAsBytes(Map.of("attribute", i)))
+                )))
                 .toList();
         final int writeConsumedCapacity = dynamoDbService.write(writeRequests);
         log.info("Write consumed capacity: {}", writeConsumedCapacity);
