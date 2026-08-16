@@ -1,5 +1,7 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.storage;
 
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.Command;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.CommandProperties;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.DynamoDbReadResponse;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.DynamoDbRecord;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.DynamoDbWriteRequest;
@@ -13,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -20,6 +23,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class StorageService {
 
@@ -33,6 +37,7 @@ public class StorageService {
     private final JsonMapper jsonMapper;
 
     private SettingsShadow settings = new SettingsShadow((Settings) null);
+    private CommandsShadow commands = new CommandsShadow(List.of());
     private final Collection<DynamoDbWriteRequest> writeRequests = new ArrayList<>();
 
     public StorageService(
@@ -74,6 +79,10 @@ public class StorageService {
                 yield new SettingsShadow(sortedSettings.getFirst());
         };
 
+        final Collection<DynamoDbRecord> commands = records.getOrDefault(RecordType.COMMAND, List.of());
+        log.debug("Fetched commands: {}", commands);
+        this.commands = new CommandsShadow(commands);
+
         return dynamoDbReadResponse.consumedCapacity();
     }
 
@@ -83,6 +92,15 @@ public class StorageService {
                 .ifPresent(writeRequests -> {
                     log.debug("Updating settings to {}", settings.getValue());
                     this.writeRequests.addAll(writeRequests);
+                });
+
+        Optional.ofNullable(commands.flush())
+                .filter(writeRequests -> !writeRequests.isEmpty())
+                .stream()
+                .flatMap(Collection::stream)
+                .forEach(writeRequest -> {
+                    log.debug("Updating command: {}", writeRequest);
+                    this.writeRequests.add(writeRequest);
                 });
 
         final int wcuConsumed = writeRequests.isEmpty()
@@ -110,9 +128,27 @@ public class StorageService {
         return new SettingsShadow(new Settings(null));
     }
 
+    public Collection<Command> getCommands() {
+        return this.commands.getValue();
+    }
+
+    public void addCommand(
+            final Long chatId,
+            final Long time,
+            final String command,
+            final List<String> parameters
+    ) {
+        this.commands.addCommand(chatId, time, command, parameters);
+    }
+
+    public void removeCommand(final String id) {
+        this.commands.removeCommand(id);
+    }
+
     private enum RecordType {
 
         SETTINGS,
+        COMMAND,
         UNKNOWN
         ;
 
@@ -198,6 +234,96 @@ public class StorageService {
                         ZipUtils.compress(storageData.getBytes())
                 )));
             }
+        }
+
+    }
+
+    private class CommandsShadow implements StorageShadow {
+
+        private final Map<String, Command> storageValue;
+        private final Map<String, Command> localValue;
+
+        public CommandsShadow(final Collection<DynamoDbRecord> records) {
+            this.storageValue = records
+                    .stream()
+                    .map(record -> {
+                        final CommandProperties properties = jsonMapper.readValue(
+                                ZipUtils.decompress(record.data()),
+                                CommandProperties.class
+                        );
+                        return new Command(
+                                record.id(),
+                                Long.valueOf(record.subject()),
+                                record.time(),
+                                properties.command(),
+                                properties.parameters()
+                        );
+                    })
+                    .collect(Collectors.toMap(
+                            Command::id,
+                            Function.identity()
+                    ));
+            this.localValue = new HashMap<>(storageValue);
+        }
+
+        public Collection<Command> getValue() {
+            return localValue.values();
+        }
+
+        public void addCommand(
+                final Long chatId,
+                final Long time,
+                final String command,
+                final List<String> parameters
+        ) {
+            final String id = UUID.randomUUID().toString();
+            localValue.put(
+                    id,
+                    new Command(
+                            id,
+                            chatId,
+                            time,
+                            command,
+                            parameters
+                    )
+            );
+        }
+
+        public void removeCommand(final String id) {
+            localValue.remove(id);
+        }
+
+        @Override
+        public Collection<DynamoDbWriteRequest> flush() {
+            final Collection<DynamoDbWriteRequest> writeRequests = Stream.of(storageValue.keySet(), localValue.keySet())
+                    .flatMap(Collection::stream)
+                    .distinct()
+                    .map(id -> {
+                        final Command storage = storageValue.get(id);
+                        final Command local = localValue.get(id);
+                        if (Objects.equals(storage, local)) {
+                            return null;
+                        } else if (local == null) {
+                            return DynamoDbWriteRequest.delete(storage.id());
+                        } else {
+                            final CommandProperties properties = new CommandProperties(
+                                    local.command(),
+                                    local.parameters()
+                            );
+                            return DynamoDbWriteRequest.put(new DynamoDbRecord(
+                                    id,
+                                    RecordType.COMMAND.getValue(),
+                                    String.valueOf(local.chatId()),
+                                    local.time(),
+                                    ZipUtils.compress(jsonMapper.writeValueAsBytes(properties))
+                            ));
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+            storageValue.clear();
+            storageValue.putAll(localValue);
+            return writeRequests;
         }
 
     }
