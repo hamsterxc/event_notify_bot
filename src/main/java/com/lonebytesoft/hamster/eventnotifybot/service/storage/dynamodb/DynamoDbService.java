@@ -1,8 +1,8 @@
-package com.lonebytesoft.hamster.eventnotifybot.service.storage;
+package com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb;
 
-import com.lonebytesoft.hamster.eventnotifybot.model.storage.DynamoDbReadResponse;
-import com.lonebytesoft.hamster.eventnotifybot.model.storage.DynamoDbRecord;
-import com.lonebytesoft.hamster.eventnotifybot.model.storage.DynamoDbWriteRequest;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbReadResponse;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWriteRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;

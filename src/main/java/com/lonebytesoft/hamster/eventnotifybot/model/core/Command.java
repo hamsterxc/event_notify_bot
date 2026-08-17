@@ -1,4 +1,4 @@
-package com.lonebytesoft.hamster.eventnotifybot.model.storage;
+package com.lonebytesoft.hamster.eventnotifybot.model.core;
 
 import java.util.List;
 

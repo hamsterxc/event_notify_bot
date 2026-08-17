@@ -1,9 +1,9 @@
 package com.lonebytesoft.hamster.eventnotifybot.handler;
 
-import com.lonebytesoft.hamster.eventnotifybot.model.storage.Settings;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
 import com.lonebytesoft.hamster.eventnotifybot.service.HttpService;
-import com.lonebytesoft.hamster.eventnotifybot.service.storage.DynamoDbService;
-import com.lonebytesoft.hamster.eventnotifybot.service.storage.StorageService;
+import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
+import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramApi;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 import org.slf4j.Logger;

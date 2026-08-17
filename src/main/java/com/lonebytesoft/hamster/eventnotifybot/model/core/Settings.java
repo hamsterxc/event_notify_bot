@@ -1,4 +1,4 @@
-package com.lonebytesoft.hamster.eventnotifybot.model.storage;
+package com.lonebytesoft.hamster.eventnotifybot.model.core;
 
 public record Settings(
         Long telegramUpdatesOffset

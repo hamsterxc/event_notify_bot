@@ -1,10 +1,12 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.storage;
 
-import com.lonebytesoft.hamster.eventnotifybot.model.storage.Command;
-import com.lonebytesoft.hamster.eventnotifybot.model.storage.DynamoDbReadResponse;
-import com.lonebytesoft.hamster.eventnotifybot.model.storage.DynamoDbRecord;
-import com.lonebytesoft.hamster.eventnotifybot.model.storage.DynamoDbWriteRequest;
-import com.lonebytesoft.hamster.eventnotifybot.model.storage.Settings;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbReadResponse;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWriteRequest;
+import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
+import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.DeleteRequest;
@@ -32,7 +34,7 @@ public class StorageServiceTest {
     @Test
     public void settings() {
         Settings settings = storageService.getSettings();
-        assertNull(settings); // nothing was fetched yet
+        assertNull(settings.telegramUpdatesOffset()); // nothing was fetched yet
 
         assertEquals(1, storageService.fetch());
         settings = storageService.getSettings(); // no settings were fetched, transparently returning default
