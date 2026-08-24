@@ -54,9 +54,11 @@ public class StorageService {
         return dynamoDbReadResponse.consumedCapacity();
     }
 
-    public void cleanup() {
-        settings.cleanup();
-        unknown.cleanup();
+    public int cleanup(final int limit) {
+        int limitLeft = limit;
+        limitLeft -= settings.cleanup(limitLeft);
+        limitLeft -= unknown.cleanup(limitLeft);
+        return limit - limitLeft;
     }
 
     public int flush() {

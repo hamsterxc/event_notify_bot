@@ -18,15 +18,17 @@ class UnknownShadow extends StorageShadow<DynamoDbRecord> {
         super(records, Function.identity(), Function.identity());
     }
 
-    public void cleanup() {
+    public int cleanup(final int limit) {
         final Collection<String> cleanupIds = getAll()
                 .stream()
+                .limit(limit)
                 .map(DynamoDbRecord::id)
                 .toList();
         if (!cleanupIds.isEmpty()) {
             log.info("Cleaning up {} records of unknown type", cleanupIds.size());
             cleanupIds.forEach(this::remove);
         }
+        return cleanupIds.size();
     }
 
     @Override

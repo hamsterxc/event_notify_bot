@@ -22,8 +22,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -74,7 +76,7 @@ public class StorageServiceTest {
         settings = storageService.getSettings();
         assertEquals(3L, settings.telegramUpdatesOffset());
 
-        storageService.cleanup();
+        assertEquals(1, storageService.cleanup(2));
         assertEquals(1, storageService.flush()); // one settings record deleted
         assertEquals(1, storageService.fetch());
         settings = storageService.getSettings();
@@ -119,7 +121,7 @@ public class StorageServiceTest {
         dynamoDbService.write(List.of(
                 DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(1L))))),
                 DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "command", "10002", 102L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new CommandProperties("test", List.of()))))),
-                DynamoDbWriteRequest.put(new DynamoDbRecord("1003", "extra", null, 103L, null))
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1003", "invalid", null, 103L, null))
         ));
 
         assertEquals(3, storageService.fetch());
@@ -127,12 +129,46 @@ public class StorageServiceTest {
         assertEquals(1, storageService.getCommands().size());
         assertCommandEquals(new Command(null, 10002L, 102L, "test", List.of()), storageService.getCommands().iterator().next());
 
-        storageService.cleanup();
+        assertEquals(1, storageService.cleanup(2));
         assertEquals(1, storageService.flush()); // the unknown record removed
         assertEquals(2, storageService.fetch());
         assertEquals(1L, storageService.getSettings().telegramUpdatesOffset());
         assertEquals(1, storageService.getCommands().size());
         assertCommandEquals(new Command(null, 10002L, 102L, "test", List.of()), storageService.getCommands().iterator().next());
+    }
+
+    @Test
+    public void cleanup() {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(1L))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "settings", null, 102L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(2L))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1003", "command", "10003", 103L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new CommandProperties("test", List.of()))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1004", "invalid", null, 104L, null)),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1005", "invalid", null, 105L, null))
+        ));
+
+        assertEquals(5, storageService.fetch());
+        assertEquals(2, storageService.cleanup(2));
+        assertEquals(2, storageService.flush());
+
+        final DynamoDbReadResponse readResponse = dynamoDbService.read();
+        assertEquals(3, readResponse.consumedCapacity());
+
+        Map<String, List<DynamoDbRecord>> records = readResponse.records()
+                .stream()
+                .collect(Collectors.groupingBy(DynamoDbRecord::type));
+        assertEquals(1, records.get("command").size());
+        assertFalse(records.get("settings").isEmpty());
+        assertEquals(2, records.get("settings").size() + records.get("invalid").size()); // it is undefined, which records exactly are cleaned up
+
+        assertEquals(1, storageService.cleanup(2));
+        assertEquals(1, storageService.flush());
+        records = readResponse.records()
+                .stream()
+                .collect(Collectors.groupingBy(DynamoDbRecord::type));
+        assertEquals(2, records.size()); // now all extra records are removed
+        assertEquals(1, records.get("command").size());
+        assertEquals(1, records.get("settings").size());
     }
 
     private static void assertCommandEquals(final Command expected, final Command actual) {

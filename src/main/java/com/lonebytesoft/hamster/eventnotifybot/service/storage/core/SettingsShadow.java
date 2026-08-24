@@ -87,15 +87,17 @@ class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
         put(id, newSettings);
     }
 
-    public void cleanup() {
+    public int cleanup(final int limit) {
         final Collection<String> cleanupIds = getAllSettings()
                 .skip(1)
+                .limit(limit)
                 .map(SettingsRecord::id)
                 .toList();
         if (!cleanupIds.isEmpty()) {
-            log.info("Cleaning up {} oldest settings records, leaving only the latest", cleanupIds.size());
+            log.info("Cleaning up {} older settings records, leaving only the latest", cleanupIds.size());
             cleanupIds.forEach(this::remove);
         }
+        return cleanupIds.size();
     }
 
     private Stream<SettingsRecord> getAllSettings() {
