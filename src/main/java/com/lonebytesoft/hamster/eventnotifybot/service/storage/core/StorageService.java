@@ -79,7 +79,7 @@ public class StorageService {
     }
 
     public void setSettings(final Settings settings) {
-        this.settings.set(settings);
+        this.settings.set(System.currentTimeMillis(), settings);
     }
 
     public Collection<Command> getCommands() {

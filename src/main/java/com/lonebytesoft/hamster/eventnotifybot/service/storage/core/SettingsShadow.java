@@ -72,7 +72,10 @@ class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
                 .orElseGet(() -> new Settings(null));
     }
 
-    public void set(final Settings settings) {
+    public void set(
+            final Long time,
+            final Settings settings
+    ) {
         final String id = getAllSettings()
                 .findFirst()
                 .map(SettingsRecord::id)
@@ -80,11 +83,7 @@ class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
         // if the new settings are the same as what is already in storage, prevent writing altogether
         final SettingsRecord newSettings = Optional.ofNullable(getFromStorage(id))
                 .filter(storage -> Objects.equals(storage.settings(), settings))
-                .orElseGet(() -> new SettingsRecord(
-                        id,
-                        System.currentTimeMillis(),
-                        settings
-                ));
+                .orElseGet(() -> new SettingsRecord(id, time, settings));
         put(id, newSettings);
     }
 
