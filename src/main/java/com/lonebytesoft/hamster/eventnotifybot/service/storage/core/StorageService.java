@@ -52,6 +52,10 @@ public class StorageService {
         return dynamoDbReadResponse.consumedCapacity();
     }
 
+    public void cleanup() {
+        settings.cleanup();
+    }
+
     public int flush() {
         final Collection<DynamoDbWriteRequest> writeRequests = Stream.of(settings, commands)
                 .map(StorageShadow::flush)

@@ -11,11 +11,11 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
 
@@ -28,30 +28,8 @@ class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
         super(records, entityBuilder(jsonMapper), recordBuilder(jsonMapper));
 
         final Collection<SettingsRecord> settings = getAll();
-        switch (settings.size()) {
-            case 0:
-                final Settings defaultSettings = defaultSettings();
-                log.info("No settings fetched, falling back to default: {}", settings);
-                set(defaultSettings);
-                break;
-
-            case 1:
-                log.debug("Fetched settings: {}", settings.iterator().next().settings());
-                break;
-
-            default:
-                log.warn("Multiple settings records fetched, leaving the latest and removing all others: {}", settings);
-                final List<SettingsRecord> sortedSettings = settings
-                        .stream()
-                        .sorted(Comparator.comparing(SettingsRecord::time).reversed()
-                                .thenComparing(SettingsRecord::id))
-                        .toList();
-                sortedSettings
-                        .stream()
-                        .skip(1)
-                        .map(SettingsRecord::id)
-                        .forEach(this::remove);
-                break;
+        if (settings.size() > 1) {
+            log.warn("Multiple settings records fetched, using the latest");
         }
     }
 
@@ -88,16 +66,14 @@ class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
     }
 
     public Settings get() {
-        return getAll()
-                .stream()
+        return getAllSettings()
                 .findFirst()
                 .map(SettingsRecord::settings)
-                .orElseGet(SettingsShadow::defaultSettings);
+                .orElseGet(() -> new Settings(null));
     }
 
     public void set(final Settings settings) {
-        final String id = getAll()
-                .stream()
+        final String id = getAllSettings()
                 .findFirst()
                 .map(SettingsRecord::id)
                 .orElseGet(() -> UUID.randomUUID().toString());
@@ -112,16 +88,29 @@ class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
         put(id, newSettings);
     }
 
-    private static Settings defaultSettings() {
-        return new Settings(null);
+    public void cleanup() {
+        final Collection<String> cleanupIds = getAllSettings()
+                .skip(1)
+                .map(SettingsRecord::id)
+                .toList();
+        if (!cleanupIds.isEmpty()) {
+            log.info("Cleaning up {} oldest settings records, leaving only the latest", cleanupIds.size());
+            cleanupIds.forEach(this::remove);
+        }
+    }
+
+    private Stream<SettingsRecord> getAllSettings() {
+        return getAll()
+                .stream()
+                .sorted(Comparator.comparing(SettingsRecord::time).reversed()
+                        .thenComparing(SettingsRecord::id));
     }
 
     @Override
     public Collection<DynamoDbWriteRequest> flush() {
         final Collection<DynamoDbWriteRequest> writeRequests = super.flush();
-        if (!writeRequests.isEmpty()) {
-            log.debug("Updating settings: {}", get());
-        }
+        writeRequests.forEach(writeRequest ->
+                log.debug("Updating settings: {}", writeRequest));
         return writeRequests;
     }
 

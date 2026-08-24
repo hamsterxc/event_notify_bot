@@ -5,6 +5,8 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbReadResponse;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWriteRequest;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SettingsProperties;
+import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
 import org.junit.jupiter.api.Test;
@@ -26,24 +28,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class StorageServiceTest {
 
-    private final StorageService storageService = new StorageService(
-            new DynamoDbServiceMock(),
-            new JsonMapper()
-    );
+    private final DynamoDbService dynamoDbService = new DynamoDbServiceMock();
+    private final JsonMapper jsonMapper = new JsonMapper();
+    private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper);
 
     @Test
     public void settings() {
         Settings settings = storageService.getSettings();
         assertNull(settings.telegramUpdatesOffset()); // nothing was fetched yet
 
-        assertEquals(1, storageService.fetch());
+        assertEquals(0, storageService.fetch()); // nothing in storage
         settings = storageService.getSettings(); // no settings were fetched, transparently returning default
         assertNull(settings.telegramUpdatesOffset());
-        assertEquals(1, storageService.flush()); // default settings saved
+        assertEquals(0, storageService.flush()); // nothing was set, nothing is saved
 
         settings = new Settings(1L);
         storageService.setSettings(settings);
-        assertEquals(1, storageService.flush()); // settings updated
+        assertEquals(1, storageService.flush()); // settings saved
         settings = storageService.getSettings();
         assertEquals(1L, settings.telegramUpdatesOffset());
 
@@ -57,12 +58,33 @@ public class StorageServiceTest {
     }
 
     @Test
+    public void settings_multiple() {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(1L))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "settings", null, 102L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(2L)))))
+        ));
+
+        assertEquals(2, storageService.fetch());
+        Settings settings = storageService.getSettings();
+        assertEquals(2L, settings.telegramUpdatesOffset()); // record with the greater time is used
+
+        storageService.setSettings(new Settings(3L));
+        assertEquals(1, storageService.flush()); // settings saved
+        settings = storageService.getSettings();
+        assertEquals(3L, settings.telegramUpdatesOffset());
+
+        storageService.cleanup();
+        assertEquals(1, storageService.flush()); // one settings record deleted
+        settings = storageService.getSettings();
+        assertEquals(3L, settings.telegramUpdatesOffset());
+    }
+
+    @Test
     public void commands() {
         Collection<Command> commands = storageService.getCommands();
         assertTrue(commands.isEmpty()); // nothing was fetched yet
 
-        assertEquals(1, storageService.fetch());
-        storageService.flush(); // flushing settings
+        assertEquals(0, storageService.fetch()); // nothing in storage
         commands = storageService.getCommands();
         assertTrue(commands.isEmpty()); // no commands in the storage
         assertEquals(0, storageService.flush());
@@ -109,7 +131,7 @@ public class StorageServiceTest {
         public DynamoDbReadResponse read() {
             return new DynamoDbReadResponse(
                     storage.values(),
-                    1
+                    storage.size()
             );
         }
 
