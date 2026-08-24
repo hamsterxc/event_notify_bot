@@ -5,6 +5,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbReadResponse;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWriteRequest;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.CommandProperties;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SettingsProperties;
 import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
@@ -75,6 +76,7 @@ public class StorageServiceTest {
 
         storageService.cleanup();
         assertEquals(1, storageService.flush()); // one settings record deleted
+        assertEquals(1, storageService.fetch());
         settings = storageService.getSettings();
         assertEquals(3L, settings.telegramUpdatesOffset());
     }
@@ -110,6 +112,27 @@ public class StorageServiceTest {
         commands = storageService.getCommands();
         assertEquals(1, commands.size());
         assertCommandEquals(new Command(null, 1L, 1L, "one", List.of("a", "b", "c")), commands.iterator().next());
+    }
+
+    @Test
+    public void unknown() {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(1L))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "command", "10002", 102L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new CommandProperties("test", List.of()))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1003", "extra", null, 103L, null))
+        ));
+
+        assertEquals(3, storageService.fetch());
+        assertEquals(1L, storageService.getSettings().telegramUpdatesOffset());
+        assertEquals(1, storageService.getCommands().size());
+        assertCommandEquals(new Command(null, 10002L, 102L, "test", List.of()), storageService.getCommands().iterator().next());
+
+        storageService.cleanup();
+        assertEquals(1, storageService.flush()); // the unknown record removed
+        assertEquals(2, storageService.fetch());
+        assertEquals(1L, storageService.getSettings().telegramUpdatesOffset());
+        assertEquals(1, storageService.getCommands().size());
+        assertCommandEquals(new Command(null, 10002L, 102L, "test", List.of()), storageService.getCommands().iterator().next());
     }
 
     private static void assertCommandEquals(final Command expected, final Command actual) {

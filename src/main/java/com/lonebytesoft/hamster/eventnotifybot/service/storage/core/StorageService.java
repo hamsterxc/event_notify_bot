@@ -30,6 +30,7 @@ public class StorageService {
 
     private SettingsShadow settings = new SettingsShadow(List.of(), null);
     private CommandsShadow commands = new CommandsShadow(List.of(), null);
+    private UnknownShadow unknown = new UnknownShadow(List.of());
 
     public StorageService(
             final DynamoDbService dynamoDbService,
@@ -48,16 +49,18 @@ public class StorageService {
 
         this.settings = new SettingsShadow(records.getOrDefault(RecordType.SETTINGS, List.of()), jsonMapper);
         this.commands = new CommandsShadow(records.getOrDefault(RecordType.COMMAND, List.of()), jsonMapper);
+        this.unknown = new UnknownShadow(records.getOrDefault(RecordType.UNKNOWN, List.of()));
 
         return dynamoDbReadResponse.consumedCapacity();
     }
 
     public void cleanup() {
         settings.cleanup();
+        unknown.cleanup();
     }
 
     public int flush() {
-        final Collection<DynamoDbWriteRequest> writeRequests = Stream.of(settings, commands)
+        final Collection<DynamoDbWriteRequest> writeRequests = Stream.of(settings, commands, unknown)
                 .map(StorageShadow::flush)
                 .flatMap(Collection::stream)
                 .toList();
