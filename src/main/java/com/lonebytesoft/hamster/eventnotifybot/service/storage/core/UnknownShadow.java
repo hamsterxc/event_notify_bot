@@ -19,7 +19,7 @@ class UnknownShadow extends StorageShadow<DynamoDbRecord> {
     }
 
     public int cleanup(final int limit) {
-        final Collection<String> cleanupIds = getAll()
+        final Collection<String> cleanupIds = getLocal()
                 .stream()
                 .limit(limit)
                 .map(DynamoDbRecord::id)

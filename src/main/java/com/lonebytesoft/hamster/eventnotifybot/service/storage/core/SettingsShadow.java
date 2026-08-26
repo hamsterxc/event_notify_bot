@@ -27,7 +27,7 @@ class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
     ) {
         super(records, entityBuilder(jsonMapper), recordBuilder(jsonMapper));
 
-        final Collection<SettingsRecord> settings = getAll();
+        final Collection<SettingsRecord> settings = getLocal();
         if (settings.size() > 1) {
             log.warn("Multiple settings records fetched, using the latest");
         }
@@ -66,7 +66,7 @@ class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
     }
 
     public Settings get() {
-        return getAllSettings()
+        return getAll()
                 .findFirst()
                 .map(SettingsRecord::settings)
                 .orElseGet(() -> new Settings(null));
@@ -76,19 +76,21 @@ class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
             final Long time,
             final Settings settings
     ) {
-        final String id = getAllSettings()
+        final String id = getAll()
                 .findFirst()
                 .map(SettingsRecord::id)
                 .orElseGet(() -> UUID.randomUUID().toString());
         // if the new settings are the same as what is already in storage, prevent writing altogether
-        final SettingsRecord newSettings = Optional.ofNullable(getFromStorage(id))
-                .filter(storage -> Objects.equals(storage.settings(), settings))
+        final SettingsRecord newSettings = getStorage()
+                .stream()
+                .filter(storage -> Objects.equals(storage.id(), id) && Objects.equals(storage.settings(), settings))
+                .findFirst()
                 .orElseGet(() -> new SettingsRecord(id, time, settings));
         put(id, newSettings);
     }
 
     public int cleanup(final int limit) {
-        final Collection<String> cleanupIds = getAllSettings()
+        final Collection<String> cleanupIds = getAll()
                 .skip(1)
                 .limit(limit)
                 .map(SettingsRecord::id)
@@ -100,8 +102,8 @@ class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
         return cleanupIds.size();
     }
 
-    private Stream<SettingsRecord> getAllSettings() {
-        return getAll()
+    private Stream<SettingsRecord> getAll() {
+        return getLocal()
                 .stream()
                 .sorted(Comparator.comparing(SettingsRecord::time).reversed()
                         .thenComparing(SettingsRecord::id));

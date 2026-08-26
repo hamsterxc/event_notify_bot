@@ -56,11 +56,11 @@ class CommandsShadow extends StorageShadow<Command> {
     }
 
     public Collection<Command> getAll() {
-        return super.getAll();
+        return super.getLocal();
     }
 
     public void add(final Command command) {
-        put(command.id(), command);
+        super.put(command.id(), command);
     }
 
     public boolean remove(final String id) {

@@ -29,11 +29,11 @@ abstract class StorageShadow<T> {
         this.recordBuilder = recordBuilder;
     }
 
-    protected T getFromStorage(final String id) {
-        return storage.get(id);
+    protected Collection<T> getStorage() {
+        return storage.values();
     }
 
-    protected Collection<T> getAll() {
+    protected Collection<T> getLocal() {
         return local.values();
     }
 
