@@ -64,8 +64,8 @@ public class StorageServiceTest {
     @Test
     public void settings_multiple() {
         dynamoDbService.write(List.of(
-                DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(1L))))),
-                DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "settings", null, 102L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(2L)))))
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, serialize(new SettingsProperties(1L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "settings", null, 102L, serialize(new SettingsProperties(2L))))
         ));
 
         assertEquals(2, storageService.fetch());
@@ -86,6 +86,9 @@ public class StorageServiceTest {
 
     @Test
     public void commands() {
+        final Command first = new Command(null, 1L, 1L, "one", List.of("a", "b", "c"));
+        final Command second = new Command(null, 2L, 2L, "two", List.of("first", "second"));
+
         Collection<Command> commands = storageService.getCommands();
         assertTrue(commands.isEmpty()); // nothing was fetched yet
 
@@ -94,27 +97,27 @@ public class StorageServiceTest {
         assertTrue(commands.isEmpty()); // no commands in the storage
         assertEquals(0, storageService.flush());
 
-        storageService.addCommand(1L, 1L, "one", List.of("a", "b", "c"));
+        storageService.addCommand(first.chatId(), first.time(), first.command(), first.parameters());
         assertEquals(1, storageService.flush()); // command added
         commands = storageService.getCommands();
         assertEquals(1, commands.size());
-        assertCommandEquals(new Command(null, 1L, 1L, "one", List.of("a", "b", "c")), commands.iterator().next());
+        assertCommandEquals(first, commands.iterator().next());
 
-        storageService.addCommand(2L, 2L, "two", List.of("first", "second"));
+        storageService.addCommand(second.chatId(), second.time(), second.command(), second.parameters());
         final List<Command> commandsSorted = storageService.getCommands()
                 .stream()
                 .sorted(Comparator.comparing(Command::command))
                 .toList();
         assertEquals(2, commandsSorted.size());
-        assertCommandEquals(new Command(null, 1L, 1L, "one", List.of("a", "b", "c")), commandsSorted.get(0));
-        assertCommandEquals(new Command(null, 2L, 2L, "two", List.of("first", "second")), commandsSorted.get(1));
+        assertCommandEquals(first, commandsSorted.get(0));
+        assertCommandEquals(second, commandsSorted.get(1));
 
         storageService.removeCommand(commandsSorted.get(1).id());
         assertEquals(0, storageService.flush()); // no command added
         assertEquals(1, storageService.fetch());
         commands = storageService.getCommands();
         assertEquals(1, commands.size());
-        assertCommandEquals(new Command(null, 1L, 1L, "one", List.of("a", "b", "c")), commands.iterator().next());
+        assertCommandEquals(first, commands.iterator().next());
     }
 
     @Test
@@ -151,31 +154,33 @@ public class StorageServiceTest {
 
     @Test
     public void unknown() {
+        final Command command = new Command(null, 10002L, 102L, "test", List.of());
+
         dynamoDbService.write(List.of(
-                DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(1L))))),
-                DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "command", "10002", 102L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new CommandProperties("test", List.of()))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, serialize(new SettingsProperties(1L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "command", "10002", 102L, serialize(new CommandProperties("test", List.of())))),
                 DynamoDbWriteRequest.put(new DynamoDbRecord("1003", "invalid", null, 103L, null))
         ));
 
         assertEquals(3, storageService.fetch());
         assertEquals(1L, storageService.getSettings().telegramUpdatesOffset());
         assertEquals(1, storageService.getCommands().size());
-        assertCommandEquals(new Command(null, 10002L, 102L, "test", List.of()), storageService.getCommands().iterator().next());
+        assertCommandEquals(command, storageService.getCommands().iterator().next());
 
         assertEquals(1, storageService.cleanup(2));
         assertEquals(1, storageService.flush()); // the unknown record removed
         assertEquals(2, storageService.fetch());
         assertEquals(1L, storageService.getSettings().telegramUpdatesOffset());
         assertEquals(1, storageService.getCommands().size());
-        assertCommandEquals(new Command(null, 10002L, 102L, "test", List.of()), storageService.getCommands().iterator().next());
+        assertCommandEquals(command, storageService.getCommands().iterator().next());
     }
 
     @Test
     public void cleanup() {
         dynamoDbService.write(List.of(
-                DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(1L))))),
-                DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "settings", null, 102L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(2L))))),
-                DynamoDbWriteRequest.put(new DynamoDbRecord("1003", "command", "10003", 103L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new CommandProperties("test", List.of()))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, serialize(new SettingsProperties(1L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "settings", null, 102L, serialize(new SettingsProperties(2L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1003", "command", "10003", 103L, serialize(new CommandProperties("test", List.of())))),
                 DynamoDbWriteRequest.put(new DynamoDbRecord("1004", "invalid", null, 104L, null)),
                 DynamoDbWriteRequest.put(new DynamoDbRecord("1005", "invalid", null, 105L, null))
         ));
@@ -202,6 +207,10 @@ public class StorageServiceTest {
         assertEquals(2, records.size()); // now all extra records are removed
         assertEquals(1, records.get("command").size());
         assertEquals(1, records.get("settings").size());
+    }
+
+    private byte[] serialize(Object value) {
+        return ZipUtils.compress(jsonMapper.writeValueAsBytes(value));
     }
 
     private static void assertCommandEquals(final Command expected, final Command actual) {
