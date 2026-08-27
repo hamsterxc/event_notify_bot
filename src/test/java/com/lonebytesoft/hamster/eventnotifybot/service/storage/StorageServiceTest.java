@@ -1,6 +1,7 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.storage;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.ProviderState;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbReadResponse;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;
@@ -117,6 +118,38 @@ public class StorageServiceTest {
     }
 
     @Test
+    public void providerStates() {
+        Collection<ProviderState> providerStates = storageService.getProviderStates();
+        assertTrue(providerStates.isEmpty()); // nothing was fetched yet
+
+        assertEquals(0, storageService.fetch()); // nothing in storage
+        providerStates = storageService.getProviderStates();
+        assertTrue(providerStates.isEmpty()); // no provider states in the storage
+        assertEquals(0, storageService.flush());
+
+        storageService.setProviderState(new ProviderState("first", 1L, "first-data"));
+        assertEquals(1, storageService.flush()); // provider state added
+        providerStates = storageService.getProviderStates();
+        assertEquals(1, providerStates.size());
+        assertProviderStateEquals(new ProviderState("first", 1L, "first-data"), providerStates.iterator().next());
+
+        storageService.setProviderState(new ProviderState("second", 2L, "second-data"));
+        final List<ProviderState> providerStatesSorted = storageService.getProviderStates()
+                .stream()
+                .sorted(Comparator.comparing(ProviderState::provider))
+                .toList();
+        assertEquals(2, providerStatesSorted.size());
+        assertProviderStateEquals(new ProviderState("first", 1L, "first-data"), providerStatesSorted.get(0));
+        assertProviderStateEquals(new ProviderState("second", 2L, "second-data"), providerStatesSorted.get(1));
+
+        assertEquals(1, storageService.flush()); // provider state added
+        storageService.setProviderState(new ProviderState("second", 2L, "second-data"));
+        assertEquals(0, storageService.flush()); // nothing has changed
+        storageService.setProviderState(new ProviderState("second", 22L, "second-data"));
+        assertEquals(1, storageService.flush()); // time was changed
+    }
+
+    @Test
     public void unknown() {
         dynamoDbService.write(List.of(
                 DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, ZipUtils.compress(jsonMapper.writeValueAsBytes(new SettingsProperties(1L))))),
@@ -176,6 +209,12 @@ public class StorageServiceTest {
         assertEquals(expected.time(), actual.time());
         assertEquals(expected.command(), actual.command());
         assertEquals(expected.parameters(), actual.parameters());
+    }
+    
+    private static void assertProviderStateEquals(final ProviderState expected, final ProviderState actual) {
+        assertEquals(expected.provider(), actual.provider());
+        assertEquals(expected.time(), actual.time());
+        assertEquals(expected.data(), actual.data());
     }
 
     private static class DynamoDbServiceMock extends DynamoDbService {

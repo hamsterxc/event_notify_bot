@@ -1,6 +1,7 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.storage.core;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.ProviderState;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbReadResponse;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;
@@ -30,6 +31,7 @@ public class StorageService {
 
     private SettingsShadow settings = new SettingsShadow(List.of(), null);
     private CommandsShadow commands = new CommandsShadow(List.of(), null);
+    private ProviderStateShadow providerState = new ProviderStateShadow(List.of());
     private UnknownShadow unknown = new UnknownShadow(List.of());
 
     public StorageService(
@@ -49,6 +51,7 @@ public class StorageService {
 
         this.settings = new SettingsShadow(records.getOrDefault(RecordType.SETTINGS, List.of()), jsonMapper);
         this.commands = new CommandsShadow(records.getOrDefault(RecordType.COMMAND, List.of()), jsonMapper);
+        this.providerState = new ProviderStateShadow(records.getOrDefault(RecordType.PROVIDER_STATE, List.of()));
         this.unknown = new UnknownShadow(records.getOrDefault(RecordType.UNKNOWN, List.of()));
 
         return dynamoDbReadResponse.consumedCapacity();
@@ -62,7 +65,12 @@ public class StorageService {
     }
 
     public int flush() {
-        final Collection<DynamoDbWriteRequest> writeRequests = Stream.of(settings, commands, unknown)
+        final Collection<DynamoDbWriteRequest> writeRequests = Stream.of(
+                        settings,
+                        commands,
+                        providerState,
+                        unknown
+                )
                 .map(StorageShadow::flush)
                 .flatMap(Collection::stream)
                 .toList();
@@ -108,6 +116,14 @@ public class StorageService {
 
     public void removeCommand(final String id) {
         this.commands.remove(id);
+    }
+
+    public Collection<ProviderState> getProviderStates() {
+        return this.providerState.getAll();
+    }
+
+    public void setProviderState(final ProviderState providerState) {
+        this.providerState.set(providerState);
     }
 
 }

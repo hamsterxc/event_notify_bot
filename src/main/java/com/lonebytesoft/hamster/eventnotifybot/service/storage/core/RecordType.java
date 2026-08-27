@@ -10,6 +10,7 @@ enum RecordType {
 
     SETTINGS,
     COMMAND,
+    PROVIDER_STATE,
     UNKNOWN
     ;
 
