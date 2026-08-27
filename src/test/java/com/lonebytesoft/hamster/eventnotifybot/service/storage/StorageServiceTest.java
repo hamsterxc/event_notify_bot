@@ -97,13 +97,13 @@ public class StorageServiceTest {
         assertTrue(commands.isEmpty()); // no commands in the storage
         assertEquals(0, storageService.flush());
 
-        storageService.addCommand(first.chatId(), first.time(), first.command(), first.parameters());
+        storageService.putCommand(first);
         assertEquals(1, storageService.flush()); // command added
         commands = storageService.getCommands();
         assertEquals(1, commands.size());
         assertCommandEquals(first, commands.iterator().next());
 
-        storageService.addCommand(second.chatId(), second.time(), second.command(), second.parameters());
+        storageService.putCommand(second);
         final List<Command> commandsSorted = storageService.getCommands()
                 .stream()
                 .sorted(Comparator.comparing(Command::command))

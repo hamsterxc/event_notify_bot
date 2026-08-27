@@ -14,6 +14,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -99,19 +100,19 @@ public class StorageService {
         return this.commands.getAll();
     }
 
-    public void addCommand(
-            final Long chatId,
-            final Long time,
-            final String command,
-            final List<String> parameters
-    ) {
-        this.commands.add(new Command(
-                UUID.randomUUID().toString(),
-                chatId,
-                time,
-                command,
-                parameters
-        ));
+    public void putCommand(final Command command) {
+        // set a random id if there was none
+        this.commands.add(
+                Optional.ofNullable(command.id())
+                        .map(_ -> command)
+                        .orElseGet(() -> new Command(
+                                UUID.randomUUID().toString(),
+                                command.chatId(),
+                                command.time(),
+                                command.command(),
+                                command.parameters()
+                        ))
+        );
     }
 
     public void removeCommand(final String id) {
