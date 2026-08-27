@@ -2,6 +2,7 @@ package com.lonebytesoft.hamster.eventnotifybot.service.storage.core;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.core.ProviderState;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.ProviderStateRecord;
 import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 
 import java.util.Collection;
@@ -10,7 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
-class ProviderStateShadow extends StorageShadow<ProviderStateShadow.ProviderStateRecord> {
+class ProviderStateShadow extends StorageShadow<ProviderStateRecord> {
 
     public ProviderStateShadow(
             final Collection<DynamoDbRecord> records
@@ -18,7 +19,7 @@ class ProviderStateShadow extends StorageShadow<ProviderStateShadow.ProviderStat
         super(records, entityBuilder(), recordBuilder());
     }
 
-    private static Function<DynamoDbRecord, ProviderStateShadow.ProviderStateRecord> entityBuilder() {
+    private static Function<DynamoDbRecord, ProviderStateRecord> entityBuilder() {
         return record -> {
             final ProviderState providerState = new ProviderState(
                     record.subject(),
@@ -32,7 +33,7 @@ class ProviderStateShadow extends StorageShadow<ProviderStateShadow.ProviderStat
         };
     }
 
-    private static Function<ProviderStateShadow.ProviderStateRecord, DynamoDbRecord> recordBuilder() {
+    private static Function<ProviderStateRecord, DynamoDbRecord> recordBuilder() {
         return providerStateRecord -> {
             final Optional<ProviderState> providerState = Optional.ofNullable(providerStateRecord.providerState());
             return new DynamoDbRecord(
@@ -62,12 +63,6 @@ class ProviderStateShadow extends StorageShadow<ProviderStateShadow.ProviderStat
                 .map(ProviderStateRecord::id)
                 .orElseGet(() -> UUID.randomUUID().toString());
         put(id, new ProviderStateRecord(id, providerState));
-    }
-
-    public record ProviderStateRecord(
-            String id,
-            ProviderState providerState
-    ) {
     }
 
 }

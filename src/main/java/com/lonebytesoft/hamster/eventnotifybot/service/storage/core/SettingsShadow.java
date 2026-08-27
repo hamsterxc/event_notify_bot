@@ -4,6 +4,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWriteRequest;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SettingsProperties;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.SettingsRecord;
 import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
+class SettingsShadow extends StorageShadow<SettingsRecord> {
 
     private static final Logger log = LoggerFactory.getLogger(SettingsShadow.class);
 
@@ -115,13 +116,6 @@ class SettingsShadow extends StorageShadow<SettingsShadow.SettingsRecord> {
         writeRequests.forEach(writeRequest ->
                 log.debug("Updating settings: {}", writeRequest));
         return writeRequests;
-    }
-
-    public record SettingsRecord(
-            String id,
-            Long time,
-            Settings settings
-    ) {
     }
 
 }
