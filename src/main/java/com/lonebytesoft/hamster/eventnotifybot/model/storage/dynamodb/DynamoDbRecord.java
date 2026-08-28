@@ -1,5 +1,6 @@
 package com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb;
 
+import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
@@ -31,6 +32,17 @@ public record DynamoDbRecord(
     ) {
         return converter.apply(Optional.ofNullable(attribute))
                 .orElse(null);
+    }
+
+    @Override
+    public String toString() {
+        return "DynamoDbRecord[id=%s, type=%s, subject=%s, time=%d, data=%s]".formatted(
+                id,
+                type,
+                subject,
+                time,
+                new String(ZipUtils.decompress(data))
+        );
     }
 
 }
