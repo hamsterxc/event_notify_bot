@@ -2,6 +2,7 @@ package com.lonebytesoft.hamster.eventnotifybot.service.storage.core;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWriteRequest;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.RecordId;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -11,7 +12,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-abstract class StorageShadow<T> {
+abstract class StorageShadow<T extends RecordId> {
 
     private final Map<String, T> storage;
     private final Map<String, T> local;
@@ -24,24 +25,21 @@ abstract class StorageShadow<T> {
     ) {
         this.storage = records
                 .stream()
-                .collect(Collectors.toMap(DynamoDbRecord::id, entityBuilder));
+                .map(entityBuilder)
+                .collect(Collectors.toMap(RecordId::id, Function.identity()));
         this.local = new HashMap<>(storage);
         this.recordBuilder = recordBuilder;
     }
 
-    protected Collection<T> getStorage() {
-        return storage.values();
-    }
-
-    protected Collection<T> getLocal() {
+    public Collection<T> getAll() {
         return local.values();
     }
 
-    protected void put(final String id, final T value) {
-        local.put(id, value);
+    public void put(final T value) {
+        local.put(value.id(), value);
     }
 
-    protected boolean remove(final String id) {
+    public boolean remove(final String id) {
         return local.remove(id) != null;
     }
 
@@ -55,7 +53,7 @@ abstract class StorageShadow<T> {
                     if (Objects.equals(storageValue, localValue)) {
                         return null;
                     } else if (localValue == null) {
-                        return DynamoDbWriteRequest.delete(id);
+                        return DynamoDbWriteRequest.delete(storageValue.id());
                     } else {
                         return DynamoDbWriteRequest.put(recordBuilder.apply(localValue));
                     }

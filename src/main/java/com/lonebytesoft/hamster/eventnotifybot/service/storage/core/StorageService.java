@@ -6,14 +6,22 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbReadResponse;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWriteRequest;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.CommandProperties;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SettingsProperties;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.CommandRecord;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.ProviderStateRecord;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.SettingsRecord;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.UnknownRecord;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -50,18 +58,28 @@ public class StorageService {
                 .stream()
                 .collect(Collectors.groupingBy(record -> RecordType.fromValue(record.type())));
 
-        this.settings = new SettingsShadow(records.getOrDefault(RecordType.SETTINGS, List.of()), jsonMapper);
+        final Collection<DynamoDbRecord> settingsRecords = records.getOrDefault(RecordType.SETTINGS, List.of());
+        if (settingsRecords.size() > 1) {
+            log.warn("Multiple settings records fetched, using the latest: {}", settingsRecords);
+        }
+        this.settings = new SettingsShadow(settingsRecords, jsonMapper);
+
         this.commands = new CommandsShadow(records.getOrDefault(RecordType.COMMAND, List.of()), jsonMapper);
         this.providerState = new ProviderStateShadow(records.getOrDefault(RecordType.PROVIDER_STATE, List.of()));
-        this.unknown = new UnknownShadow(records.getOrDefault(RecordType.UNKNOWN, List.of()));
+
+        final Collection<DynamoDbRecord> unknownRecords = records.getOrDefault(RecordType.UNKNOWN, List.of());
+        if (!unknownRecords.isEmpty()) {
+            log.warn("Records of unknown type fetched, ignoring: {}", unknownRecords);
+        }
+        this.unknown = new UnknownShadow(unknownRecords);
 
         return dynamoDbReadResponse.consumedCapacity();
     }
 
     public int cleanup(final int limit) {
         int limitLeft = limit;
-        limitLeft -= settings.cleanup(limitLeft);
-        limitLeft -= unknown.cleanup(limitLeft);
+        limitLeft -= cleanupSettings(limitLeft);
+        limitLeft -= cleanupUnknown(limitLeft);
         return limit - limitLeft;
     }
 
@@ -89,30 +107,79 @@ public class StorageService {
     }
 
     public Settings getSettings() {
-        return this.settings.get();
+        return getSettingsRecords()
+                .findFirst()
+                .map(SettingsRecord::properties)
+                .map(properties -> new Settings(
+                        properties.telegramUpdatesOffset()
+                ))
+                .orElseGet(() -> new Settings(
+                        null
+                ));
     }
 
     public void setSettings(final Settings settings) {
-        this.settings.set(System.currentTimeMillis(), settings);
+        final String id = getSettingsRecords()
+                .findFirst()
+                .map(SettingsRecord::id)
+                .orElseGet(() -> UUID.randomUUID().toString());
+        final SettingsProperties properties = new SettingsProperties(
+                settings.telegramUpdatesOffset()
+        );
+        this.settings.put(new SettingsRecord(
+                id,
+                System.currentTimeMillis(),
+                properties
+        ));
+    }
+
+    private int cleanupSettings(final int limit) {
+        final Collection<String> cleanupIds = getSettingsRecords()
+                .skip(1)
+                .limit(limit)
+                .map(SettingsRecord::id)
+                .toList();
+        if (!cleanupIds.isEmpty()) {
+            log.info("Cleaning up {} older settings records, leaving only the latest", cleanupIds.size());
+            cleanupIds.forEach(this.settings::remove);
+        }
+        return cleanupIds.size();
+    }
+
+    private Stream<SettingsRecord> getSettingsRecords() {
+        return this.settings.getAll()
+                .stream()
+                .sorted(Comparator.comparing(SettingsRecord::time).reversed()
+                        .thenComparing(SettingsRecord::id));
     }
 
     public Collection<Command> getCommands() {
-        return this.commands.getAll();
+        return this.commands.getAll()
+                .stream()
+                .map(record -> new Command(
+                        record.id(),
+                        record.chatId(),
+                        record.time(),
+                        record.properties().command(),
+                        record.properties().parameters()
+                ))
+                .toList();
     }
 
     public void putCommand(final Command command) {
         // set a random id if there was none
-        this.commands.add(
-                Optional.ofNullable(command.id())
-                        .map(_ -> command)
-                        .orElseGet(() -> new Command(
-                                UUID.randomUUID().toString(),
-                                command.chatId(),
-                                command.time(),
-                                command.command(),
-                                command.parameters()
-                        ))
+        final String id = Optional.ofNullable(command.id())
+                .orElseGet(() -> UUID.randomUUID().toString());
+        final CommandProperties properties = new CommandProperties(
+                command.command(),
+                command.parameters()
         );
+        this.commands.put(new CommandRecord(
+                id,
+                command.chatId(),
+                command.time(),
+                properties
+        ));
     }
 
     public void removeCommand(final String id) {
@@ -120,11 +187,42 @@ public class StorageService {
     }
 
     public Collection<ProviderState> getProviderStates() {
-        return this.providerState.getAll();
+        return this.providerState.getAll()
+                .stream()
+                .map(record -> new ProviderState(
+                        record.provider(),
+                        record.time(),
+                        record.data()
+                ))
+                .toList();
     }
 
     public void setProviderState(final ProviderState providerState) {
-        this.providerState.set(providerState);
+        final String id = this.providerState.getAll()
+                .stream()
+                .filter(record -> Objects.equals(record.provider(), providerState.provider()))
+                .findFirst()
+                .map(ProviderStateRecord::id)
+                .orElseGet(() -> UUID.randomUUID().toString());
+        this.providerState.put(new ProviderStateRecord(
+                id,
+                providerState.provider(),
+                providerState.time(),
+                providerState.data()
+        ));
+    }
+
+    private int cleanupUnknown(final int limit) {
+        final Collection<String> cleanupIds = this.unknown.getAll()
+                .stream()
+                .limit(limit)
+                .map(UnknownRecord::id)
+                .toList();
+        if (!cleanupIds.isEmpty()) {
+            log.info("Cleaning up {} records of unknown type", cleanupIds.size());
+            cleanupIds.forEach(this.unknown::remove);
+        }
+        return cleanupIds.size();
     }
 
 }

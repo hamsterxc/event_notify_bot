@@ -56,7 +56,7 @@ public class StorageServiceTest {
         storageService.setSettings(settings);
         settings = new Settings(1L);
         storageService.setSettings(settings);
-        assertEquals(0, storageService.flush()); // settings stay the same, not updated
+        assertEquals(1, storageService.flush()); // settings time was updated
         settings = storageService.getSettings();
         assertEquals(1L, settings.telegramUpdatesOffset());
     }
