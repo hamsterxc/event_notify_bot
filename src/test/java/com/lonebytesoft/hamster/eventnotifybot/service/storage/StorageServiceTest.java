@@ -189,7 +189,7 @@ public class StorageServiceTest {
         assertEquals(2, storageService.cleanup(2));
         assertEquals(2, storageService.flush());
 
-        final DynamoDbReadResponse readResponse = dynamoDbService.read();
+        DynamoDbReadResponse readResponse = dynamoDbService.read();
         assertEquals(3, readResponse.consumedCapacity());
 
         Map<String, List<DynamoDbRecord>> records = readResponse.records()
@@ -201,6 +201,10 @@ public class StorageServiceTest {
 
         assertEquals(1, storageService.cleanup(2));
         assertEquals(1, storageService.flush());
+
+        readResponse = dynamoDbService.read();
+        assertEquals(2, readResponse.consumedCapacity());
+
         records = readResponse.records()
                 .stream()
                 .collect(Collectors.groupingBy(DynamoDbRecord::type));

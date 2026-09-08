@@ -41,7 +41,10 @@ public record DynamoDbRecord(
                 type,
                 subject,
                 time,
-                new String(ZipUtils.decompress(data))
+                Optional.ofNullable(data)
+                        .map(ZipUtils::decompress)
+                        .map(String::new)
+                        .orElse(null)
         );
     }
 
