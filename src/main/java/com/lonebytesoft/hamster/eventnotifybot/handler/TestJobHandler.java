@@ -32,7 +32,8 @@ public class TestJobHandler implements JobHandler {
         );
         this.storageService = new StorageService(
                 dynamoDbService,
-                jsonMapper
+                jsonMapper,
+                20
         );
 
         final HttpService httpService = new HttpService(Duration.ofSeconds(1));

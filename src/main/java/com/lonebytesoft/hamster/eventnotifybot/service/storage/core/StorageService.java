@@ -36,12 +36,11 @@ public class StorageService {
 
     private static final Logger log = LoggerFactory.getLogger(StorageService.class);
 
-    private static final int WCU_LIMIT = 25;
-    private static final int WCU_WARN_LIMIT_PERCENTAGE = 80;
-    private static final int WCU_WARN_LIMIT = (int) Math.ceil((double) WCU_LIMIT * WCU_WARN_LIMIT_PERCENTAGE / 100);
+    private static final int WRITE_COST_WARN_LIMIT_PERCENTAGE = 80;
 
     private final DynamoDbService dynamoDbService;
     private final JsonMapper jsonMapper;
+    private final int writeCostWarnLimit;
 
     private SettingsShadow settings = new SettingsShadow(List.of(), null);
     private CommandsShadow commands = new CommandsShadow(List.of(), null);
@@ -52,10 +51,12 @@ public class StorageService {
 
     public StorageService(
             final DynamoDbService dynamoDbService,
-            final JsonMapper jsonMapper
+            final JsonMapper jsonMapper,
+            final int writeCostLimit
     ) {
         this.dynamoDbService = dynamoDbService;
         this.jsonMapper = jsonMapper;
+        this.writeCostWarnLimit = (int) Math.ceil((double) writeCostLimit * WRITE_COST_WARN_LIMIT_PERCENTAGE / 100);
     }
 
     public int fetch() {
@@ -85,11 +86,11 @@ public class StorageService {
         return dynamoDbReadResponse.consumedCapacity();
     }
 
-    public int cleanup(final int limit) {
-        int limitLeft = limit;
+    public int cleanup(final int writeCostLimit) {
+        int limitLeft = writeCostLimit;
         limitLeft -= cleanupSettings(limitLeft);
         limitLeft -= cleanupUnknown(limitLeft);
-        return limit - limitLeft;
+        return writeCostLimit - limitLeft;
     }
 
     public int flush() {
@@ -105,16 +106,16 @@ public class StorageService {
                 .flatMap(Collection::stream)
                 .toList();
 
-        final int wcuConsumed = writeRequests.isEmpty()
+        final int writeCost = writeRequests.isEmpty()
                 ? 0
-                : dynamoDbService.write(writeRequests);
-        if (wcuConsumed < WCU_WARN_LIMIT) {
-            log.debug("{} WCU consumed while flushing", wcuConsumed);
+                : dynamoDbService.write(writeRequests); // 1 WCU has write-cost of 1
+        if (writeCost < writeCostWarnLimit) {
+            log.debug("Flushing to storage: {} write cost", writeCost);
         } else {
-            log.warn("Consumed more than {}% of limit while flushing: {} WCU consumed", WCU_WARN_LIMIT_PERCENTAGE, wcuConsumed);
+            log.warn("Flushing to storage: {} write cost, more than {}% of limit", writeCost, WRITE_COST_WARN_LIMIT_PERCENTAGE);
         }
 
-        return wcuConsumed;
+        return writeCost;
     }
 
     public Settings getSettings() {
@@ -144,10 +145,10 @@ public class StorageService {
         ));
     }
 
-    private int cleanupSettings(final int limit) {
+    private int cleanupSettings(final int writeCostLimit) {
         final Collection<String> cleanupIds = getSettingsRecords()
                 .skip(1)
-                .limit(limit)
+                .limit(writeCostLimit) // assuming here that removing a record has write-cost of 1
                 .map(SettingsRecord::id)
                 .toList();
         if (!cleanupIds.isEmpty()) {
@@ -363,10 +364,10 @@ public class StorageService {
                 .toList();
     }
 
-    private int cleanupUnknown(final int limit) {
+    private int cleanupUnknown(final int writeCostLimit) {
         final Collection<String> cleanupIds = this.unknown.getAll()
                 .stream()
-                .limit(limit)
+                .limit(writeCostLimit) // assuming here that removing a record has write-cost of 1
                 .map(UnknownRecord::id)
                 .toList();
         if (!cleanupIds.isEmpty()) {

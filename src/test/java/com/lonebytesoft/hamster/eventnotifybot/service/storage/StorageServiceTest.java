@@ -35,7 +35,7 @@ public class StorageServiceTest {
 
     private final DynamoDbService dynamoDbService = new DynamoDbServiceMock();
     private final JsonMapper jsonMapper = new JsonMapper();
-    private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper);
+    private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, 20);
 
     @Test
     public void settings() {
