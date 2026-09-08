@@ -4,21 +4,26 @@ import com.amazonaws.services.lambda.runtime.ClientContext;
 import com.amazonaws.services.lambda.runtime.CognitoIdentity;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
+import com.lonebytesoft.hamster.eventnotifybot.handler.EventNotifyBotJobHandler;
 import com.lonebytesoft.hamster.eventnotifybot.handler.LambdaHandler;
-import com.lonebytesoft.hamster.eventnotifybot.handler.TestJobHandler;
 
 import java.time.Duration;
 
-public class Test {
+public class LocalRun {
+
+    private static final Duration GLOBAL_TIMEOUT = Duration.ofMinutes(1);
+    private static final Duration EXECUTION_BUFFER = Duration.ofSeconds(2);
+    private static final Duration CYCLE_PAUSE = Duration.ofSeconds(1);
+    private static final Duration CYCLE_DURATION = Duration.ofSeconds(2);
 
     static void main(String[] args) {
         new LambdaHandler(
-                new TestJobHandler(),
-                Duration.ofSeconds(2),
-                Duration.ofSeconds(5),
-                Duration.ofSeconds(1)
+                new EventNotifyBotJobHandler(),
+                EXECUTION_BUFFER,
+                CYCLE_PAUSE,
+                CYCLE_DURATION
         ).run(
-                new TimeLimitingContext(System.currentTimeMillis() + Duration.ofMinutes(1).toMillis())
+                new TimeLimitingContext(System.currentTimeMillis() + GLOBAL_TIMEOUT.toMillis())
         );
     }
 

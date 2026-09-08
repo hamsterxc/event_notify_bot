@@ -1,6 +1,5 @@
 package com.lonebytesoft.hamster.eventnotifybot.handler;
 
-import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
 import com.lonebytesoft.hamster.eventnotifybot.service.HttpService;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
@@ -14,29 +13,33 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 
-public class TestJobHandler implements JobHandler {
+public class EventNotifyBotJobHandler implements JobHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(TestJobHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(EventNotifyBotJobHandler.class);
+
+    private static final String DYNAMODB_TABLE_NAME = "event-notify-bot-table";
+    private static final int WRITE_COST_LIMIT = 20;
+    private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(1);
 
     private final StorageService storageService;
     private final TelegramService telegramService;
 
-    public TestJobHandler() {
+    public EventNotifyBotJobHandler() {
         final JsonMapper jsonMapper = JsonMapper.builder()
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .build();
 
         final DynamoDbService dynamoDbService = new DynamoDbService(
                 DynamoDbClient.create(),
-                "event-notify-bot-table"
+                DYNAMODB_TABLE_NAME
         );
         this.storageService = new StorageService(
                 dynamoDbService,
                 jsonMapper,
-                20
+                WRITE_COST_LIMIT
         );
 
-        final HttpService httpService = new HttpService(Duration.ofSeconds(1));
+        final HttpService httpService = new HttpService(HTTP_TIMEOUT);
         final TelegramApi telegramApi = new TelegramApi(
                 httpService,
                 jsonMapper,
@@ -47,25 +50,8 @@ public class TestJobHandler implements JobHandler {
 
     @Override
     public void run(Duration extraTimeout) throws Exception {
-        log.info("Initial settings: {}", storageService.getSettings());
-
-        storageService.fetch();
-        log.info("Settings after fetch: {}", storageService.getSettings());
-        log.info("Flushing: {} WCU consumed (expecting 0)", storageService.flush());
-
-        storageService.setSettings(new Settings(1L));
-        log.info("Settings after set: {}", storageService.getSettings());
-        log.info("Flushing: {} WCU consumed (expecting 1)", storageService.flush());
-
-        storageService.setSettings(new Settings(2L));
-        log.info("Settings after second set: {}", storageService.getSettings());
-        storageService.setSettings(new Settings(1L));
-        log.info("Settings after reverting: {}", storageService.getSettings());
-        log.info("Flushing: {} WCU consumed (expecting 0)", storageService.flush());
-
-        storageService.fetch();
-        log.info("Settings after fetch: {}", storageService.getSettings());
-        log.info("Flushing: {} WCU consumed (expecting 0)", storageService.flush());
+        // todo: implement job handling
+        log.info("Job run");
     }
 
 }
