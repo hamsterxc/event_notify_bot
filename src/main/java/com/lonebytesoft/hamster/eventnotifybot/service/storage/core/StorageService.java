@@ -3,14 +3,18 @@ package com.lonebytesoft.hamster.eventnotifybot.service.storage.core;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.ProviderState;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.Subscription;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbReadResponse;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWriteRequest;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.CommandProperties;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SettingsProperties;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SubscriptionProperties;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.CommandRecord;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.ProviderStateRecord;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.SettingsRecord;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.SubscriptionCacheRecord;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.SubscriptionRecord;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.record.UnknownRecord;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
 import org.slf4j.Logger;
@@ -24,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -41,6 +46,8 @@ public class StorageService {
     private SettingsShadow settings = new SettingsShadow(List.of(), null);
     private CommandsShadow commands = new CommandsShadow(List.of(), null);
     private ProviderStateShadow providerState = new ProviderStateShadow(List.of());
+    private SubscriptionShadow subscription = new SubscriptionShadow(List.of(), null);
+    private SubscriptionCacheShadow subscriptionCache = new SubscriptionCacheShadow(List.of());
     private UnknownShadow unknown = new UnknownShadow(List.of());
 
     public StorageService(
@@ -66,6 +73,8 @@ public class StorageService {
 
         this.commands = new CommandsShadow(records.getOrDefault(RecordType.COMMAND, List.of()), jsonMapper);
         this.providerState = new ProviderStateShadow(records.getOrDefault(RecordType.PROVIDER_STATE, List.of()));
+        this.subscription = new SubscriptionShadow(records.getOrDefault(RecordType.SUBSCRIPTION, List.of()), jsonMapper);
+        this.subscriptionCache = new SubscriptionCacheShadow(records.getOrDefault(RecordType.SUBSCRIPTION_CACHE, List.of()));
 
         final Collection<DynamoDbRecord> unknownRecords = records.getOrDefault(RecordType.UNKNOWN, List.of());
         if (!unknownRecords.isEmpty()) {
@@ -88,6 +97,8 @@ public class StorageService {
                         settings,
                         commands,
                         providerState,
+                        subscription,
+                        subscriptionCache,
                         unknown
                 )
                 .map(StorageShadow::flush)
@@ -210,6 +221,146 @@ public class StorageService {
                 providerState.time(),
                 providerState.data()
         ));
+    }
+
+    public Collection<Subscription> getSubscriptions() {
+        final Map<String, SubscriptionCacheRecord> subscriptionCache = getSubscriptionCache();
+        return this.subscription.getAll()
+                .stream()
+                .map(subscriptionRecord -> Optional.ofNullable(subscriptionRecord.properties())
+                        .map(SubscriptionProperties::cacheRef)
+                        .map(subscriptionCache::get)
+                        .map(cache -> new Subscription(
+                                subscriptionRecord.chatId(),
+                                cache.provider(),
+                                cache.data()
+                        ))
+                        .orElseGet(() -> {
+                            log.warn("No reference cache entry for subscription, skipping: {}", subscriptionRecord);
+                            return null;
+                        }))
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    public boolean addSubscription(final Subscription subscription) {
+        if (!findSubscriptionIds(
+                getSubscriptionCache(),
+                subscription.chatId(),
+                subscription.provider()
+        ).isEmpty()) {
+            log.debug("Not creating a duplicate subscription: {}", subscription);
+            return false;
+        }
+
+        final String cacheRef = obtainSubscriptionCacheRef(subscription.provider(), subscription.data());
+        final SubscriptionRecord subscriptionRecord = new SubscriptionRecord(
+                UUID.randomUUID().toString(),
+                subscription.chatId(),
+                System.currentTimeMillis(),
+                new SubscriptionProperties(cacheRef)
+        );
+        this.subscription.put(subscriptionRecord);
+        log.debug("Creating a new subscription: {}", subscriptionRecord);
+        return true;
+    }
+
+    public boolean updateSubscription(final Subscription subscription) {
+        final Collection<String> subscriptionIds = findSubscriptionIds(
+                getSubscriptionCache(),
+                subscription.chatId(),
+                subscription.provider()
+        );
+        if (subscriptionIds.isEmpty()) {
+            log.warn("Not updating a non-existent subscription: {}", subscription);
+            return false;
+        } else {
+            if (subscriptionIds.size() > 1) {
+                log.warn("Multiple subscriptions found: {}", subscription);
+            }
+
+            final Long time = System.currentTimeMillis();
+            final String cacheRef = obtainSubscriptionCacheRef(subscription.provider(), subscription.data());
+            subscriptionIds.forEach(id -> this.subscription.put(new SubscriptionRecord(
+                    id,
+                    subscription.chatId(),
+                    time,
+                    new SubscriptionProperties(cacheRef)
+            )));
+            log.debug("Updating subscription: {}", subscription);
+            return true;
+        }
+    }
+
+    public boolean removeSubscription(
+            final Long chatId,
+            final String provider
+    ) {
+        final Collection<String> subscriptionIds = findSubscriptionIds(
+                getSubscriptionCache(),
+                chatId,
+                provider
+        );
+        if (subscriptionIds.isEmpty()) {
+            log.debug("Not removing a non-existent subscription: chat {}, provider {}", chatId, provider);
+            return false;
+        } else {
+            if (subscriptionIds.size() > 1) {
+                log.warn("Multiple subscriptions for chat {}, provider {}", chatId, provider);
+            }
+
+            subscriptionIds.forEach(this.subscription::remove);
+            log.debug("Removing subscription: chat {}, provider {}", chatId, provider);
+            return true;
+        }
+    }
+
+    private Map<String, SubscriptionCacheRecord> getSubscriptionCache() {
+        return this.subscriptionCache.getAll()
+                .stream()
+                .collect(Collectors.toMap(SubscriptionCacheRecord::id, Function.identity()));
+    }
+
+    private String obtainSubscriptionCacheRef(
+            final String provider,
+            final String data
+    ) {
+        return this.subscriptionCache.getAll()
+                .stream()
+                .filter(subscriptionCacheRecord -> Objects.equals(provider, subscriptionCacheRecord.provider())
+                        && Objects.equals(data, subscriptionCacheRecord.data()))
+                .findFirst()
+                .map(SubscriptionCacheRecord::id)
+                .orElseGet(() -> {
+                    final String id = UUID.randomUUID().toString();
+                    final SubscriptionCacheRecord subscriptionCacheRecord = new SubscriptionCacheRecord(
+                            id,
+                            provider,
+                            System.currentTimeMillis(),
+                            data
+                    );
+                    this.subscriptionCache.put(subscriptionCacheRecord);
+                    log.debug("Creating a new subscription cache entry: {}", subscriptionCacheRecord);
+                    return id;
+                });
+    }
+
+    private Collection<String> findSubscriptionIds(
+            final Map<String, SubscriptionCacheRecord> subscriptionCache,
+            final Long chatId,
+            final String provider
+    ) {
+        return this.subscription.getAll()
+                .stream()
+                .filter(subscriptionRecord -> Objects.equals(subscriptionRecord.chatId(), chatId))
+                .map(subscriptionRecord -> Optional.ofNullable(subscriptionRecord.properties())
+                        .map(SubscriptionProperties::cacheRef)
+                        .map(subscriptionCache::get)
+                        .filter(subscriptionCacheRecord -> Objects.equals(subscriptionCacheRecord.provider(), provider))
+                        .map(_ -> subscriptionRecord.id())
+                        .orElse(null))
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     private int cleanupUnknown(final int limit) {

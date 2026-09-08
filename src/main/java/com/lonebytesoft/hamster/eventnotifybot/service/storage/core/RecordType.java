@@ -11,6 +11,8 @@ enum RecordType {
     SETTINGS,
     COMMAND,
     PROVIDER_STATE,
+    SUBSCRIPTION,
+    SUBSCRIPTION_CACHE,
     UNKNOWN
     ;
 
