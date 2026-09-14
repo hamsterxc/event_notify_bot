@@ -19,14 +19,27 @@ public class CommandParsingServiceTest {
     private final CommandParsingService commandParsingService = new CommandParsingService();
 
     @Test
+    public void parseMessage_emptyMessage_ignored() {
+        assertEquals(
+                Optional.empty(),
+                commandParsingService.parseMessage(message(
+                        1L,
+                        2L,
+                        "private",
+                        null
+                ))
+        );
+    }
+
+    @Test
     public void parseMessage_emptyCommand_ignored() {
         assertEquals(
                 Optional.empty(),
                 commandParsingService.parseMessage(message(
                         1L,
                         2L,
-                        "group",
-                        null
+                        "private",
+                        "/"
                 ))
         );
     }
@@ -38,7 +51,7 @@ public class CommandParsingServiceTest {
                 commandParsingService.parseMessage(message(
                         1L,
                         2L,
-                        "group",
+                        "private",
                         "hello world"
                 ))
         );
@@ -51,7 +64,7 @@ public class CommandParsingServiceTest {
                 commandParsingService.parseMessage(message(
                         1L,
                         2L,
-                        "group",
+                        "private",
                         "/hello! world"
                 ))
         );
@@ -64,7 +77,7 @@ public class CommandParsingServiceTest {
                 commandParsingService.parseMessage(message(
                         1L,
                         2L,
-                        "group",
+                        "private",
                         "/hello@world"
                 ))
         );
@@ -97,7 +110,7 @@ public class CommandParsingServiceTest {
     }
 
     @Test
-    public void parseMessage_unknownCommandDirectMention_unknownCommand() {
+    public void parseMessage_unknownCommandBroadcastDirectMention_unknownCommand() {
         assertEquals(
                 Optional.of(new Command(
                         null,
@@ -135,7 +148,90 @@ public class CommandParsingServiceTest {
     }
 
     @Test
-    public void parseMessage_tooLongCommand_invalidCommand() {
+    public void parseMessage_recognizedUnknownCommandBroadcast_ignored() {
+        assertEquals(
+                Optional.empty(),
+                commandParsingService.parseMessage(message(
+                        1L,
+                        2L,
+                        "group",
+                        "/unknown"
+                ))
+        );
+    }
+
+    @Test
+    public void parseMessage_recognizedUnknownCommandBroadcastDirectMention_unknownCommand() {
+        assertEquals(
+                Optional.of(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "unknown",
+                        List.of("unknown")
+                )),
+                commandParsingService.parseMessage(message(
+                        1L,
+                        2L,
+                        "group",
+                        "/unknown@hamster_event_bot"
+                ))
+        );
+    }
+
+    @Test
+    public void parseMessage_recognizedUnknownCommandPrivateChat_unknownCommand() {
+        assertEquals(
+                Optional.of(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "unknown",
+                        List.of("unknown")
+                )),
+                commandParsingService.parseMessage(message(
+                        1L,
+                        2L,
+                        "private",
+                        "/unknown"
+                ))
+        );
+    }
+
+    @Test
+    public void parseMessage_tooLongCommandBroadcast_ignored() {
+        assertEquals(
+                Optional.empty(),
+                commandParsingService.parseMessage(message(
+                        1L,
+                        2L,
+                        "group",
+                        "/" + IntStream.range(0, 500).mapToObj(_ -> "a").collect(Collectors.joining())
+                ))
+        );
+    }
+
+    @Test
+    public void parseMessage_tooLongCommandPrivateChat_invalidCommand() {
+        assertEquals(
+                Optional.of(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "invalid",
+                        List.of("Command too long")
+                )),
+                commandParsingService.parseMessage(message(
+                        1L,
+                        2L,
+                        "private",
+                        "/" + IntStream.range(0, 500).mapToObj(_ -> "a").collect(Collectors.joining())
+                ))
+        );
+    }
+
+    @Test
+    public void parseMessage_tooLongParametersBroadcast_invalidCommand() {
         assertEquals(
                 Optional.of(new Command(
                         null,
@@ -148,6 +244,25 @@ public class CommandParsingServiceTest {
                         1L,
                         2L,
                         "group",
+                        "/test " + IntStream.range(0, 500).mapToObj(_ -> "-").collect(Collectors.joining())
+                ))
+        );
+    }
+
+    @Test
+    public void parseMessage_tooLongParametersPrivateChat_invalidCommand() {
+        assertEquals(
+                Optional.of(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "invalid",
+                        List.of("Command too long")
+                )),
+                commandParsingService.parseMessage(message(
+                        1L,
+                        2L,
+                        "private",
                         "/test " + IntStream.range(0, 500).mapToObj(_ -> "-").collect(Collectors.joining())
                 ))
         );
@@ -202,6 +317,20 @@ public class CommandParsingServiceTest {
                         1L,
                         "invalid",
                         List.of("Command too long")
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_unrecognized() {
+        assertEquals(
+                Optional.empty(),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "test",
+                        List.of()
                 ))
         );
     }

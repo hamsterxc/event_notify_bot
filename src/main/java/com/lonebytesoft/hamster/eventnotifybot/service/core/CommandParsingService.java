@@ -11,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -24,8 +26,7 @@ public class CommandParsingService {
     private static final int TELEGRAM_MESSAGE_MAX_LENGTH = 500;
     private static final String TELEGRAM_CHAT_TYPE_DIRECT = "private";
 
-    private static final String UNKNOWN_COMMAND = "unknown";
-    private static final String INVALID_COMMAND = "invalid";
+    private static final Collection<CommandType> UNKNOWN_COMMANDS = EnumSet.of(CommandType.INVALID, CommandType.UNKNOWN);
 
     public Optional<Command> parseMessage(final Message message) {
         final MessageParts messageParts = Optional.ofNullable(message)
@@ -47,35 +48,38 @@ public class CommandParsingService {
             return Optional.empty();
         }
 
-        final CommandType commandType = CommandType.fromValue(messageParts.command())
-                .orElse(null);
-        if (commandType == null) {
-            final boolean isDirect = (messageParts.address() != null)
-                    || TELEGRAM_CHAT_TYPE_DIRECT.equalsIgnoreCase(message.chat().type());
-            log.debug("Unknown command received (direct {}): {}", isDirect, message);
-            if (isDirect) {
+        final CommandType commandType = CommandType.fromValue(messageParts.command());
+        final boolean isDirect = (messageParts.address() != null)
+                || TELEGRAM_CHAT_TYPE_DIRECT.equalsIgnoreCase(message.chat().type());
+        final boolean isUnknown = UNKNOWN_COMMANDS.contains(commandType);
+        final boolean isTooLong = message.text().length() > TELEGRAM_MESSAGE_MAX_LENGTH;
+        if (isTooLong) {
+            // shielding against too large writes to the storage
+            if (isDirect || !isUnknown) {
+                log.debug("Too long command received: {}", message);
                 return Optional.of(new Command(
                         null,
                         chatId,
                         message.date(),
-                        UNKNOWN_COMMAND,
-                        List.of(messageParts.command()) // todo: this can be too long too
+                        CommandType.INVALID.getValue(),
+                        List.of("Command too long")
                 ));
             } else {
                 return Optional.empty();
             }
-        }
-
-        // shielding against too large writes to the storage
-        if (message.text().length() > TELEGRAM_MESSAGE_MAX_LENGTH) {
-            log.debug("Too long command received: {}", message);
-            return Optional.of(new Command(
-                    null,
-                    chatId,
-                    message.date(),
-                    INVALID_COMMAND,
-                    List.of("Command too long")
-            ));
+        } else if (isUnknown) {
+            if (isDirect) {
+                log.debug("Unknown command received: {}", message);
+                return Optional.of(new Command(
+                        null,
+                        chatId,
+                        message.date(),
+                        CommandType.UNKNOWN.getValue(),
+                        List.of(messageParts.command())
+                ));
+            } else {
+                return Optional.empty();
+            }
         }
 
         final List<String> parameters = Optional.ofNullable(messageParts.parameters())
@@ -96,11 +100,11 @@ public class CommandParsingService {
     }
 
     public Optional<ExecutableCommand> parseCommand(final Command command) {
-        return Optional.ofNullable(switch (command.command()) {
-            case UNKNOWN_COMMAND -> new UnknownCommand(command.chatId(), command.parameters().getFirst());
-            case INVALID_COMMAND -> new InvalidCommand(command.chatId(), command.parameters().getFirst());
-            case null, default -> {
-                log.warn("Processing unknown command: {}", command);
+        return Optional.ofNullable(switch (CommandType.fromValue(command.command())) {
+            case INVALID -> new InvalidCommand(command.chatId(), command.parameters().getFirst());
+            case UNKNOWN -> new UnknownCommand(command.chatId(), command.parameters().getFirst());
+            default -> {
+                log.warn("Not processing unknown command type: {}", command);
                 yield null;
             }
         });

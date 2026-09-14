@@ -9,15 +9,18 @@ import java.util.stream.Collectors;
 public enum CommandType {
 
     TEST, // todo: remove when real commands are implemented
+    INVALID,
+    UNKNOWN,
     ;
 
     private static final Map<String, CommandType> BY_VALUE = Arrays.stream(values())
             .collect(Collectors.toMap(CommandType::getValue, Function.identity()));
 
-    public static Optional<CommandType> fromValue(final String value) {
+    public static CommandType fromValue(final String value) {
         return Optional.ofNullable(value)
                 .map(String::toLowerCase)
-                .map(BY_VALUE::get);
+                .map(BY_VALUE::get)
+                .orElse(UNKNOWN);
     }
 
     public String getValue() {
