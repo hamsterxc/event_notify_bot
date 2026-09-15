@@ -12,10 +12,14 @@ public class AwsLambdaRequestHandler implements RequestHandler<Void, Void> {
     private static final Duration CYCLE_PAUSE = Duration.ofSeconds(1);
     private static final Duration CYCLE_DURATION = Duration.ofSeconds(2);
 
+    private static final ApplicationContext applicationContext = new ApplicationContext();
+
     @Override
     public Void handleRequest(Void input, Context context) {
+        applicationContext.initialize();
+
         new LambdaHandler(
-                new EventNotifyBotJobHandler(),
+                new EventNotifyBotJobHandler(applicationContext),
                 EXECUTION_BUFFER,
                 CYCLE_PAUSE,
                 CYCLE_DURATION

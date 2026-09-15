@@ -4,6 +4,7 @@ import com.amazonaws.services.lambda.runtime.ClientContext;
 import com.amazonaws.services.lambda.runtime.CognitoIdentity;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
+import com.lonebytesoft.hamster.eventnotifybot.handler.ApplicationContext;
 import com.lonebytesoft.hamster.eventnotifybot.handler.EventNotifyBotJobHandler;
 import com.lonebytesoft.hamster.eventnotifybot.handler.LambdaHandler;
 
@@ -17,8 +18,11 @@ public class LocalRun {
     private static final Duration CYCLE_DURATION = Duration.ofSeconds(2);
 
     static void main(String[] args) {
+        final ApplicationContext applicationContext = new ApplicationContext();
+        applicationContext.initialize();
+
         new LambdaHandler(
-                new EventNotifyBotJobHandler(),
+                new EventNotifyBotJobHandler(applicationContext),
                 EXECUTION_BUFFER,
                 CYCLE_PAUSE,
                 CYCLE_DURATION
