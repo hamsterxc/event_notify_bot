@@ -13,13 +13,14 @@ public record InvalidCommand(
     private static final String ERROR_PLACEHOLDER = "%ERROR%";
 
     @Override
-    public void execute(StorageService storageService, TelegramService telegramService) {
+    public boolean execute(StorageService storageService, TelegramService telegramService) {
         telegramService.sendMessage(
                 chatId,
                 null,
                 MESSAGE_TEMPLATE.replace(ERROR_PLACEHOLDER, error).trim(),
                 false
         );
+        return true;
     }
 
     @Override

@@ -112,7 +112,7 @@ public class StorageService {
         if (writeCost < writeCostWarnLimit) {
             log.debug("Flushing to storage: {} write cost", writeCost);
         } else {
-            log.warn("Flushing to storage: {} write cost, more than {}% of limit", writeCost, WRITE_COST_WARN_LIMIT_PERCENTAGE);
+            log.warn("Flushing to storage: {} write cost, >={}% of limit", writeCost, WRITE_COST_WARN_LIMIT_PERCENTAGE);
         }
 
         return writeCost;

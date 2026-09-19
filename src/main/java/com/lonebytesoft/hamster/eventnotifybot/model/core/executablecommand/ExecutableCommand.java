@@ -5,7 +5,7 @@ import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 
 public interface ExecutableCommand {
 
-    void execute(StorageService storageService, TelegramService telegramService);
+    boolean execute(StorageService storageService, TelegramService telegramService);
 
     Integer estimateWriteCost(StorageService storageService);
 

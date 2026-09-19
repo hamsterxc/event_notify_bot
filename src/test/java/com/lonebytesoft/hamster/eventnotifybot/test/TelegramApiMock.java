@@ -12,6 +12,7 @@ import java.util.Optional;
 
 public class TelegramApiMock extends TelegramApi {
 
+    private List<Update> updates = null;
     private final List<SentMessage> sentMessages = new ArrayList<>();
 
     public TelegramApiMock() {
@@ -20,12 +21,22 @@ public class TelegramApiMock extends TelegramApi {
 
     @Override
     public Optional<User> getMe() {
-        throw new UnsupportedOperationException();
+        return Optional.empty();
     }
 
     @Override
     public Optional<List<Update>> getUpdates(Long offset, int batchSize, Collection<String> updateTypes) {
-        throw new UnsupportedOperationException();
+        if (this.updates == null) {
+            throw new IllegalStateException("No updates set");
+        }
+        return Optional.of(this.updates
+                .stream()
+                .filter(offset == null
+                        ? _ -> true
+                        : update -> Optional.ofNullable(update.id())
+                                    .map(id -> id >= offset)
+                                    .orElse(false))
+                .toList());
     }
 
     @Override
@@ -38,6 +49,10 @@ public class TelegramApiMock extends TelegramApi {
     public Optional<Message> sendPhoto(Long chatId, String photoUrl, String text, String parseMode, Boolean showLinkPreview) {
         this.sentMessages.add(new SentMessage(chatId, photoUrl, text));
         return Optional.empty();
+    }
+
+    public void setUpdates(final List<Update> updates) {
+        this.updates = updates;
     }
 
     public List<SentMessage> getSentMessages() {

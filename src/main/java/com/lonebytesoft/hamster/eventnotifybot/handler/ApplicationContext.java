@@ -69,4 +69,8 @@ public class ApplicationContext {
         return commandParsingService;
     }
 
+    public int getWriteCostLimit() {
+        return WRITE_COST_LIMIT;
+    }
+
 }

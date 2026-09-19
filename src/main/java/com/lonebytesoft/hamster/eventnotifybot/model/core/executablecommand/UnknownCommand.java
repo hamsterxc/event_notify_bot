@@ -13,13 +13,14 @@ public record UnknownCommand(
     private static final String COMMAND_PLACEHOLDER = "%COMMAND%";
 
     @Override
-    public void execute(StorageService storageService, TelegramService telegramService) {
+    public boolean execute(StorageService storageService, TelegramService telegramService) {
         telegramService.sendMessage(
                 chatId,
                 null,
                 MESSAGE_TEMPLATE.replace(COMMAND_PLACEHOLDER, command).trim(),
                 false
         );
+        return true;
     }
 
     @Override
