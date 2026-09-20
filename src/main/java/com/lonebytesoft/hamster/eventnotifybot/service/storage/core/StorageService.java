@@ -178,16 +178,13 @@ public class StorageService {
                 .toList();
     }
 
-    public void putCommand(final Command command) {
-        // set a random id if there was none
-        final String id = Optional.ofNullable(command.id())
-                .orElseGet(() -> UUID.randomUUID().toString());
+    public void addCommand(final Command command) {
         final CommandProperties properties = new CommandProperties(
                 command.command(),
                 command.parameters()
         );
         this.commands.put(new CommandRecord(
-                id,
+                UUID.randomUUID().toString(),
                 command.chatId(),
                 command.time(),
                 properties

@@ -3,7 +3,6 @@ package com.lonebytesoft.hamster.eventnotifybot.handler;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.ExecutableCommand;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Update;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.CommandParsingService;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
@@ -96,7 +95,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
                     telegramPointer.set(updateId);
                 });
         final Consumer<ParsedCommand> commandStorageAction = command -> {
-            command.command().ifPresent(storageService::putCommand);
+            command.command().ifPresent(storageService::addCommand);
             telegramPointerUpdater.accept(command);
         };
         budget = process(
