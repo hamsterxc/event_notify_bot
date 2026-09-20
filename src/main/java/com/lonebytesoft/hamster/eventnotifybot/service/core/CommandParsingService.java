@@ -5,6 +5,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.Comm
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.ExecutableCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.HelpCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.InvalidCommand;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.StatusCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.UnknownCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Chat;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
@@ -105,10 +106,17 @@ public class CommandParsingService {
             case TEST -> new UnknownCommand(command.chatId(), command.command());
             case START, HELP -> command.parameters().isEmpty()
                     ? new HelpCommand(command.chatId())
-                    : new InvalidCommand(command.chatId(), "No parameters expected for command " + command.command());
+                    : noParametersExpected(command);
+            case STATUS -> command.parameters().isEmpty()
+                    ? new StatusCommand(command.chatId())
+                    : noParametersExpected(command);
             case INVALID -> new InvalidCommand(command.chatId(), command.parameters().getFirst());
             case UNKNOWN -> new UnknownCommand(command.chatId(), command.parameters().getFirst());
         });
+    }
+
+    private static ExecutableCommand noParametersExpected(final Command command) {
+        return new InvalidCommand(command.chatId(), "No parameters expected for command " + command.command());
     }
 
     private record MessageParts(

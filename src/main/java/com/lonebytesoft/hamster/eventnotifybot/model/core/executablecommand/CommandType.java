@@ -11,6 +11,7 @@ public enum CommandType {
     TEST, // todo: remove when commands suitable for existing tests are implemented
     START,
     HELP,
+    STATUS,
     INVALID,
     UNKNOWN,
     ;

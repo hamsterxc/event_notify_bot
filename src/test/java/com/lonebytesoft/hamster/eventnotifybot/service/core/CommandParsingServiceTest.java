@@ -3,6 +3,7 @@ package com.lonebytesoft.hamster.eventnotifybot.service.core;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.HelpCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.InvalidCommand;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.StatusCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.UnknownCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Chat;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
@@ -383,6 +384,39 @@ public class CommandParsingServiceTest {
                         2L,
                         1L,
                         "help",
+                        List.of("foo", "bar")
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_status() {
+        assertEquals(
+                Optional.of(new StatusCommand(
+                        2L
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "status",
+                        List.of()
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_statusWithParameters_invalid() {
+        assertEquals(
+                Optional.of(new InvalidCommand(
+                        2L,
+                        "No parameters expected for command status"
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "status",
                         List.of("foo", "bar")
                 ))
         );
