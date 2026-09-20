@@ -8,7 +8,9 @@ import java.util.stream.Collectors;
 
 public enum CommandType {
 
-    TEST, // todo: remove when real commands are implemented
+    TEST, // todo: remove when commands suitable for existing tests are implemented
+    START,
+    HELP,
     INVALID,
     UNKNOWN,
     ;

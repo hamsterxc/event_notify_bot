@@ -3,6 +3,7 @@ package com.lonebytesoft.hamster.eventnotifybot.service.core;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.CommandType;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.ExecutableCommand;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.HelpCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.InvalidCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.UnknownCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Chat;
@@ -100,13 +101,13 @@ public class CommandParsingService {
     }
 
     public Optional<ExecutableCommand> parseCommand(final Command command) {
-        return Optional.ofNullable(switch (CommandType.fromValue(command.command())) {
+        return Optional.of(switch (CommandType.fromValue(command.command())) {
+            case TEST -> new UnknownCommand(command.chatId(), command.command());
+            case START, HELP -> command.parameters().isEmpty()
+                    ? new HelpCommand(command.chatId())
+                    : new InvalidCommand(command.chatId(), "No parameters expected for command " + command.command());
             case INVALID -> new InvalidCommand(command.chatId(), command.parameters().getFirst());
             case UNKNOWN -> new UnknownCommand(command.chatId(), command.parameters().getFirst());
-            default -> {
-                log.warn("Not processing unknown command type: {}", command);
-                yield null;
-            }
         });
     }
 

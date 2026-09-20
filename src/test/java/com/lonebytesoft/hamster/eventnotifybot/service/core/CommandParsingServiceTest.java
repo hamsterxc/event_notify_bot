@@ -1,6 +1,7 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.core;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.HelpCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.InvalidCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.UnknownCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Chat;
@@ -322,15 +323,67 @@ public class CommandParsingServiceTest {
     }
 
     @Test
-    public void parseCommand_unrecognized() {
+    public void parseCommand_start() {
         assertEquals(
-                Optional.empty(),
+                Optional.of(new HelpCommand(
+                        2L
+                )),
                 commandParsingService.parseCommand(new Command(
                         null,
                         2L,
                         1L,
-                        "test",
+                        "start",
                         List.of()
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_startWithParameters_invalid() {
+        assertEquals(
+                Optional.of(new InvalidCommand(
+                        2L,
+                        "No parameters expected for command start"
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "start",
+                        List.of("foo", "bar")
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_help() {
+        assertEquals(
+                Optional.of(new HelpCommand(
+                        2L
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "help",
+                        List.of()
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_helpWithParameters_invalid() {
+        assertEquals(
+                Optional.of(new InvalidCommand(
+                        2L,
+                        "No parameters expected for command help"
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "help",
+                        List.of("foo", "bar")
                 ))
         );
     }
