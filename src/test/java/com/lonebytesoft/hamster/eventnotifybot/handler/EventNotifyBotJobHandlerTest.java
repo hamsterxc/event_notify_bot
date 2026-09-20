@@ -210,7 +210,7 @@ public class EventNotifyBotJobHandlerTest {
         handler.run(Duration.ZERO);
 
         assertDynamoDbRecordsEquals(List.of(
-                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(12L)))
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(2L)))
         ), dynamoDbService.read().records());
         assertEquals(List.of(
                 new TelegramApiMock.SentMessage(1002L, null, "Unrecognized command: <b>second</b>"),
@@ -240,7 +240,7 @@ public class EventNotifyBotJobHandlerTest {
         handler.run(Duration.ZERO);
 
         assertDynamoDbRecordsEquals(List.of(
-                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(12L)))
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(2L)))
         ), dynamoDbService.read().records());
         assertEquals(List.of(
                 new TelegramApiMock.SentMessage(14L, null, "Unrecognized command: <b>fourth</b>"),
@@ -308,7 +308,7 @@ public class EventNotifyBotJobHandlerTest {
 
         // only the most recent message processed
         assertDynamoDbRecordsEquals(List.of(
-                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(13L))),
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(3L))),
                 new DynamoDbRecord(null, "command", "1001", 103L, serialize(new CommandProperties("unknown", List.of("first")))),
                 new DynamoDbRecord(null, "command", "1001", 102L, serialize(new CommandProperties("unknown", List.of("second"))))
         ), dynamoDbService.read().records());
@@ -340,7 +340,7 @@ public class EventNotifyBotJobHandlerTest {
 
         // only the most recent command processed
         assertDynamoDbRecordsEquals(List.of(
-                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(12L))),
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(2L))),
                 new DynamoDbRecord(null, "command", "1001", 101L, serialize(new CommandProperties("unknown", List.of("second")))),
                 new DynamoDbRecord(null, "command", "1001", 102L, serialize(new CommandProperties("unknown", List.of("first")))),
                 new DynamoDbRecord("3", "command", "1001", 104L, serialize(new CommandProperties("unknown", List.of("fourth"))))
@@ -377,7 +377,7 @@ public class EventNotifyBotJobHandlerTest {
 
         // only the most recent command processed
         assertDynamoDbRecordsEquals(List.of(
-                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(12L))),
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(2L))),
                 new DynamoDbRecord(null, "command", "1001", 101L, serialize(new CommandProperties("unknown", List.of("second")))),
                 new DynamoDbRecord(null, "command", "1001", 102L, serialize(new CommandProperties("unknown", List.of("first")))),
                 new DynamoDbRecord("3", "command", "1001", 108L, serialize(new CommandProperties("unknown", List.of("eighth")))),
@@ -413,7 +413,7 @@ public class EventNotifyBotJobHandlerTest {
 
         // only four messages processed due to cautious budget spending
         assertDynamoDbRecordsEquals(List.of(
-                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(14L)))
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(4L)))
         ), dynamoDbService.read().records());
         assertEquals(List.of(
                 new TelegramApiMock.SentMessage(1006L, null, "Unrecognized command: <b>sixth</b>"),
@@ -450,7 +450,7 @@ public class EventNotifyBotJobHandlerTest {
 
         // only two messages processed due to cautious budget spending
         assertDynamoDbRecordsEquals(List.of(
-                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(12L)))
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(2L)))
         ), dynamoDbService.read().records());
         assertEquals(List.of(
                 new TelegramApiMock.SentMessage(18L, null, "Unrecognized command: <b>eighth</b>"),
@@ -525,7 +525,7 @@ public class EventNotifyBotJobHandlerTest {
 
         // only four messages processed due to cautious budget spending
         assertDynamoDbRecordsEquals(List.of(
-                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(14L))),
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(4L))),
                 new DynamoDbRecord(null, "command", "1001", 102L, serialize(new CommandProperties("unknown", List.of("fifth")))),
                 new DynamoDbRecord(null, "command", "1001", 103L, serialize(new CommandProperties("unknown", List.of("fourth")))),
                 new DynamoDbRecord(null, "command", "1001", 104L, serialize(new CommandProperties("unknown", List.of("third"))))
@@ -563,7 +563,7 @@ public class EventNotifyBotJobHandlerTest {
 
         // only two messages processed due to cautious budget spending
         assertDynamoDbRecordsEquals(List.of(
-                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(13L))),
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(3L))),
                 new DynamoDbRecord("7", "command", "1001", 108L, serialize(new CommandProperties("unknown", List.of("seventh")))),
                 new DynamoDbRecord(null, "command", "1001", 101L, serialize(new CommandProperties("unknown", List.of("sixth")))),
                 new DynamoDbRecord(null, "command", "1001", 102L, serialize(new CommandProperties("unknown", List.of("fifth")))),
@@ -605,7 +605,7 @@ public class EventNotifyBotJobHandlerTest {
         handler.run(Duration.ZERO);
 
         assertDynamoDbRecordsEquals(List.of(
-                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(13L))),
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(3L))),
                 new DynamoDbRecord("7", "command", "1001", 112L, serialize(new CommandProperties("unknown", List.of("seventh")))),
                 new DynamoDbRecord("8", "command", "1001", 111L, serialize(new CommandProperties("unknown", List.of("eighth")))),
                 new DynamoDbRecord("9", "command", "1001", 110L, serialize(new CommandProperties("unknown", List.of("ninth")))),

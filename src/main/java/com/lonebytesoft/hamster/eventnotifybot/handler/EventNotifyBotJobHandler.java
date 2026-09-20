@@ -89,22 +89,26 @@ public class EventNotifyBotJobHandler implements JobHandler {
                 .orElse(null);
         final AtomicBoolean hasTelegramPointer = new AtomicBoolean(telegramUpdatesOffset != null);
         final AtomicLong telegramPointer = new AtomicLong(telegramUpdatesOffset == null ? 0 : telegramUpdatesOffset);
-        final Consumer<Message> telegramPointerUpdater = message -> Optional.ofNullable(message.id())
-                .ifPresent(messageId -> {
+        final Consumer<ParsedCommand> telegramPointerUpdater = command -> Optional.ofNullable(command.update())
+                .map(Update::id)
+                .ifPresent(updateId -> {
                     hasTelegramPointer.set(true);
-                    telegramPointer.set(messageId);
+                    telegramPointer.set(updateId);
                 });
         final Consumer<ParsedCommand> commandStorageAction = command -> {
             command.command().ifPresent(storageService::putCommand);
-            telegramPointerUpdater.accept(command.message());
+            telegramPointerUpdater.accept(command);
         };
         budget = process(
                 budget,
                 telegramService.getUpdates(telegramUpdatesOffset)
                         .stream()
-                        .map(Update::message)
-                        .sorted(Comparator.comparing(Message::date))
-                        .map(message -> new ParsedCommand(message, commandParsingService.parseMessage(message)))
+                        .sorted(Comparator.comparing(Update::id))
+                        .map(update -> new ParsedCommand(
+                                update,
+                                Optional.ofNullable(update.message())
+                                        .flatMap(commandParsingService::parseMessage)
+                        ))
                         .toList(),
                 command -> telegramChatUsedChecker.apply(command.command().map(Command::chatId)),
                 command -> command.command()
@@ -112,7 +116,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
                         .orElse(null),
                 command -> estimateCost(command, 1), // max of additional cost of incomplete and complete executions
                 command -> {
-                    telegramPointerUpdater.accept(command.message());
+                    telegramPointerUpdater.accept(command);
                     return 0;
                 },
                 command -> {
@@ -120,7 +124,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
                     return 1;
                 },
                 commandStorageAction,
-                command -> telegramPointerUpdater.accept(command.message())
+                telegramPointerUpdater
         );
         log.debug("Processed Telegram commands, remaining budget: {}/{}", budget, writeCostLimit);
 
@@ -247,7 +251,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
     }
 
     private record ParsedCommand(
-            Message message,
+            Update update,
             Optional<Command> command
     ) {
     }
