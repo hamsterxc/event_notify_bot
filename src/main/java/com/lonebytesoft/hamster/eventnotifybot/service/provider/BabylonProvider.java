@@ -7,6 +7,7 @@ import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
@@ -18,22 +19,25 @@ import java.util.function.Function;
 
 import static com.lonebytesoft.hamster.eventnotifybot.service.HttpService.isSuccess;
 
-public class BabylonProvider implements Provider<BabylonMovie> {
+public class BabylonProvider implements Provider {
 
     private static final Logger log = LoggerFactory.getLogger(BabylonProvider.class);
 
     private static final String URL = "https://babylonberlin.eu";
 
     private final HttpService httpService;
+    private final JsonMapper jsonMapper;
 
     public BabylonProvider(
-            final HttpService httpService
+            final HttpService httpService,
+            final JsonMapper jsonMapper
     ) {
         this.httpService = httpService;
+        this.jsonMapper = jsonMapper;
     }
 
     @Override
-    public List<BabylonMovie> get() {
+    public Optional<String> getData() {
         final HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(URL + "/programm"))
                 .GET()
@@ -41,12 +45,12 @@ public class BabylonProvider implements Provider<BabylonMovie> {
         final Optional<HttpResponse<String>> responseOptional = httpService.fetch(request);
         if (responseOptional.isEmpty()) {
             log.warn("Could not fetch movies page, returning empty");
-            return List.of();
+            return Optional.empty();
         }
         final HttpResponse<String> response = responseOptional.get();
         if (!isSuccess(response)) {
             log.warn("Unexpected movies page response code {}, returning empty", response.statusCode());
-            return List.of();
+            return Optional.empty();
         }
 
         final List<BabylonMovie> movies = Jsoup.parse(response.body())
@@ -80,7 +84,7 @@ public class BabylonProvider implements Provider<BabylonMovie> {
         if (movies.isEmpty()) {
             log.warn("Empty Babylon movies list successfully fetched - maybe something is wrong?");
         }
-        return movies;
+        return Optional.ofNullable(jsonMapper.writeValueAsString(movies));
     }
 
     private Optional<String> getAttribute(final Element element, final String attributeKey) {

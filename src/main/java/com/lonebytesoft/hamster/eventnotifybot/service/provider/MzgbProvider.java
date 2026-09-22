@@ -25,7 +25,7 @@ import java.util.stream.Stream;
 
 import static com.lonebytesoft.hamster.eventnotifybot.service.HttpService.isSuccess;
 
-public class MzgbProvider implements Provider<MzgbGame> {
+public class MzgbProvider implements Provider {
 
     private static final Logger log = LoggerFactory.getLogger(MzgbProvider.class);
 
@@ -44,7 +44,7 @@ public class MzgbProvider implements Provider<MzgbGame> {
     }
 
     @Override
-    public List<MzgbGame> get() {
+    public Optional<String> getData() {
         final HttpRequest startPageRequest = HttpRequest.newBuilder()
                 .uri(URI.create(URL))
                 .GET()
@@ -52,12 +52,12 @@ public class MzgbProvider implements Provider<MzgbGame> {
         final Optional<HttpResponse<String>> startPageResponseOptional = httpService.fetch(startPageRequest);
         if (startPageResponseOptional.isEmpty()) {
             log.warn("Could not fetch starting page, returning empty");
-            return List.of();
+            return Optional.empty();
         }
         final HttpResponse<String> startPageResponse = startPageResponseOptional.get();
         if (!isSuccess(startPageResponse)) {
             log.warn("Unexpected starting page response code {}, returning empty", startPageResponse.statusCode());
-            return List.of();
+            return Optional.empty();
         }
 
         final Map<String, String> cookies = parseCookies(startPageResponse);
@@ -73,12 +73,12 @@ public class MzgbProvider implements Provider<MzgbGame> {
         final Optional<HttpResponse<String>> dataResponseOptional = httpService.fetch(dataRequest);
         if (dataResponseOptional.isEmpty()) {
             log.warn("Could not fetch game data, returning empty");
-            return List.of();
+            return Optional.empty();
         }
         final HttpResponse<String> dataResponse = dataResponseOptional.get();
         if (!isSuccess(dataResponse)) {
             log.warn("Unexpected game data response code {}, returning empty", dataResponse.statusCode());
-            return List.of();
+            return Optional.empty();
         }
 
         final MzgbGameData gameData;
@@ -86,7 +86,7 @@ public class MzgbProvider implements Provider<MzgbGame> {
             gameData = jsonMapper.readValue(dataResponse.body(), MzgbGameData.class);
         } catch (JacksonException e) {
             log.warn("Could not parse game data, returning empty", e);
-            return List.of();
+            return Optional.empty();
         }
 
         final Map<Integer, String> categoryDescriptions = getCategoryDescriptions();
@@ -122,7 +122,7 @@ public class MzgbProvider implements Provider<MzgbGame> {
         if (games.isEmpty()) {
             log.warn("Empty Mzgb games list successfully fetched - maybe something is wrong?");
         }
-        return games;
+        return Optional.ofNullable(jsonMapper.writeValueAsString(games));
     }
 
     private static Map<String, String> parseCookies(final HttpResponse<?> response) {

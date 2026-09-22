@@ -1,0 +1,36 @@
+{
+  "upcomingGames": [
+    {
+      "id": 1,
+      "event_date": "25 Dec 2026",
+      "event_time": "19:00",
+      "game": {
+        "name": "Christmas party",
+        "category_id": 0
+      },
+      "img": "/christmas-image",
+      "price": "11",
+      "currency": "EUR",
+      "venue": {
+        "address": "christmas-address",
+        "name": "christmas-club"
+      }
+    },
+    {
+      "id": 2,
+      "event_date": "31 Dec 2026",
+      "event_time": "23:59",
+      "game": {
+        "name": "Silvester party",
+        "category_id": 7
+      },
+      "img": "/silvester-image",
+      "price": "12",
+      "currency": "USD",
+      "venue": {
+        "address": "silvester-address",
+        "name": "silvester-club"
+      }
+    }
+  ]
+}

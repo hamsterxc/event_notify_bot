@@ -1,9 +1,9 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.provider;
 
-import java.util.List;
+import java.util.Optional;
 
-public interface Provider<T> {
+public interface Provider {
 
-    List<T> get();
+    Optional<String> getData();
 
 }
