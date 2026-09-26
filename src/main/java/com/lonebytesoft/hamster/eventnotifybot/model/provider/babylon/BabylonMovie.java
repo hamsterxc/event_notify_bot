@@ -1,6 +1,6 @@
 package com.lonebytesoft.hamster.eventnotifybot.model.provider.babylon;
 
-import java.util.Collection;
+import java.util.List;
 
 public record BabylonMovie(
         String idTitle,
@@ -11,6 +11,6 @@ public record BabylonMovie(
         String length,
         String url,
         String imageUrl,
-        Collection<String> tags
+        List<String> tags
 ) {
 }

@@ -1,8 +1,8 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.telegram;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.User;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Update;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +15,9 @@ import java.util.Optional;
 public class TelegramService {
 
     private static final Logger log = LoggerFactory.getLogger(TelegramService.class);
+
+    public static final int MAX_MESSAGE_TEXT_LENGTH = 4000;
+    public static final int MAX_MESSAGE_TEXT_WITH_IMAGE_LENGTH = 1000;
 
     private static final int GET_UPDATES_BATCH_SIZE = 100;
     private static final Collection<String> GET_UPDATES_TYPES = List.of("message");

@@ -1,5 +1,7 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.provider;
 
+import com.lonebytesoft.hamster.eventnotifybot.model.provider.ProviderView;
+import com.lonebytesoft.hamster.eventnotifybot.model.provider.babylon.BabylonMovie;
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
 import com.lonebytesoft.hamster.eventnotifybot.test.HttpServiceMock;
 import org.junit.jupiter.api.Test;
@@ -9,6 +11,8 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -116,6 +120,591 @@ public class BabylonProviderTest {
                 ),
                 jsonMapper.readValue(data.get(), DATA_TYPE)
         );
+    }
+
+    @Test
+    public void getStateView_unparseableData() {
+        final String data = "{}";
+
+        final Optional<ProviderView> stateView = provider.getStateView(data, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                <i>An error occurred while getting the movie list.</i>
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getStateView_emptyData() {
+        final String data = jsonMapper.writeValueAsString(List.of());
+
+        final Optional<ProviderView> stateView = provider.getStateView(data, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                <i>No movies scheduled...</i>
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getStateView_oneMovieWithoutImage() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title",
+                        "description",
+                        "datetime",
+                        "length",
+                        "url",
+                        null,
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getStateView(data, null, 0);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                <b><a href="url">title</a></b>
+                description
+                
+                <i>datetime
+                Length: length</i>
+                
+                #tag1 #tag2
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getStateView_oneMovieWithImage() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title",
+                        "description",
+                        "datetime",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getStateView(data, 0, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url",
+                """
+                <b><a href="url">title</a></b>
+                description
+                
+                <i>datetime
+                Length: length</i>
+                
+                #tag1 #tag2
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getStateView_oneMovieWithoutImageDescriptionOutsideLimit_descriptionCut() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title",
+                        IntStream.range(0, 10).mapToObj(_ -> "description").collect(Collectors.joining()),
+                        "datetime",
+                        "length",
+                        "url",
+                        null,
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final int limit = 200;
+        final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                <b><a href="url">title</a></b>
+                descriptiondescriptiondescripti...
+                
+                <i>datetime
+                Length: length</i>
+                
+                #tag1 #tag2
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+        assertEquals(limit, stateView.get().textHtml().length());
+    }
+
+    @Test
+    public void getStateView_oneMovieWithImageDescriptionOutsideLimit_descriptionCut() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title",
+                        IntStream.range(0, 10).mapToObj(_ -> "description").collect(Collectors.joining()),
+                        "datetime",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final int limit = 200;
+        final Optional<ProviderView> stateView = provider.getStateView(data, 0, limit);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url",
+                """
+                <b><a href="url">title</a></b>
+                descriptiondescriptiondescripti...
+                
+                <i>datetime
+                Length: length</i>
+                
+                #tag1 #tag2
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+        assertEquals(limit, stateView.get().textHtml().length());
+    }
+
+    @Test
+    public void getStateView_oneMovieWithoutImageTitleOutsideLimit_viewCut() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        IntStream.range(0, 10).mapToObj(_ -> "title").collect(Collectors.joining()),
+                        "description",
+                        "datetime",
+                        "length",
+                        "url",
+                        null,
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final int limit = 200;
+        final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                <b><a href="url">titletitletitletitletitletitletitletitletitletitle</a></b>
+                
+                <i>datetime
+                Length: length</i>...
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+        assertEquals(limit, stateView.get().textHtml().length());
+    }
+
+    @Test
+    public void getStateView_oneMovieWithImageTitleOutsideLimit_viewCut() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        IntStream.range(0, 10).mapToObj(_ -> "title").collect(Collectors.joining()),
+                        "description",
+                        "datetime",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final int limit = 200;
+        final Optional<ProviderView> stateView = provider.getStateView(data, 0, limit);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url",
+                """
+                <b><a href="url">titletitletitletitletitletitletitletitletitletitle</a></b>
+                
+                <i>datetime
+                Length: length</i>...
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+        assertEquals(limit, stateView.get().textHtml().length());
+    }
+
+    @Test
+    public void getStateView_twoMoviesWithoutImage() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title first",
+                        "description first",
+                        "datetime first",
+                        "length first",
+                        "url first",
+                        null,
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title second",
+                        "description second",
+                        "datetime second",
+                        "length second",
+                        "url second",
+                        null,
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getStateView(data, null, 0);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                <b><a href="url first">title first</a></b>
+                description first
+                
+                <i>datetime first
+                Length: length first</i>
+                
+                #tag11 #tag12
+                
+                <b><a href="url second">title second</a></b>
+                description second
+
+                <i>datetime second
+                Length: length second</i>
+
+                #tag21 #tag22
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getStateView_twoMoviesOneWithImage() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title first",
+                        "description first",
+                        "datetime first",
+                        "length first",
+                        "url first",
+                        null,
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title second",
+                        "description second",
+                        "datetime second",
+                        "length second",
+                        "url second",
+                        "image-url second",
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getStateView(data, null, 0);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                <b><a href="url first">title first</a></b>
+                description first
+                
+                <i>datetime first
+                Length: length first</i>
+                
+                #tag11 #tag12
+                
+                <b><a href="url second">title second</a></b>
+                description second
+
+                <i>datetime second
+                Length: length second</i>
+
+                #tag21 #tag22
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getStateView_twoMoviesWithImages() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title first",
+                        "description first",
+                        "datetime first",
+                        "length first",
+                        "url first",
+                        "image-url first",
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title second",
+                        "description second",
+                        "datetime second",
+                        "length second",
+                        "url second",
+                        "image-url second",
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getStateView(data, null, 0);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                <b><a href="url first">title first</a></b>
+                description first
+                
+                <i>datetime first
+                Length: length first</i>
+                
+                #tag11 #tag12
+                
+                <b><a href="url second">title second</a></b>
+                description second
+
+                <i>datetime second
+                Length: length second</i>
+
+                #tag21 #tag22
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getStateView_twoMoviesWithoutImagesOutsideLimit_secondCut() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title first",
+                        "description first",
+                        "datetime first",
+                        "length first",
+                        "url first",
+                        null,
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title second",
+                        "description second",
+                        "datetime second",
+                        "length second",
+                        "url second",
+                        null,
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final int limit = 300;
+        final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                <b><a href="url first">title first</a></b>
+                description first
+                
+                <i>datetime first
+                Length: length first</i>
+                
+                #tag11 #tag12
+                
+                <i>And 1 more. See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+        assertTrue(stateView.get().textHtml().length() <= limit);
+    }
+
+    @Test
+    public void getStateView_twoMoviesOnlyFirstWithImageOutsideLimit_withImageSecondCut() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title first",
+                        "description first",
+                        "datetime first",
+                        "length first",
+                        "url first",
+                        "image-url first",
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title second",
+                        "description second",
+                        "datetime second",
+                        "length second",
+                        "url second",
+                        null,
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final int limit = 300;
+        final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url first",
+                """
+                <b><a href="url first">title first</a></b>
+                description first
+                
+                <i>datetime first
+                Length: length first</i>
+                
+                #tag11 #tag12
+                
+                <i>And 1 more. See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+        assertTrue(stateView.get().textHtml().length() <= limit);
+    }
+
+    @Test
+    public void getStateView_twoMoviesOnlySecondWithImageOutsideLimit_noImageSecondCut() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title first",
+                        "description first",
+                        "datetime first",
+                        "length first",
+                        "url first",
+                        null,
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title second",
+                        "description second",
+                        "datetime second",
+                        "length second",
+                        "url second",
+                        "image-url second",
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final int limit = 300;
+        final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                <b><a href="url first">title first</a></b>
+                description first
+                
+                <i>datetime first
+                Length: length first</i>
+                
+                #tag11 #tag12
+                
+                <i>And 1 more. See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+        assertTrue(stateView.get().textHtml().length() <= limit);
+    }
+
+    @Test
+    public void getStateView_twoMoviesWithImagesOutsideLimit_firstImageSecondCut() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title first",
+                        "description first",
+                        "datetime first",
+                        "length first",
+                        "url first",
+                        "image-url first",
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        null,
+                        null,
+                        "title second",
+                        "description second",
+                        "datetime second",
+                        "length second",
+                        "url second",
+                        "image-url second",
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final int limit = 300;
+        final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url first",
+                """
+                <b><a href="url first">title first</a></b>
+                description first
+                
+                <i>datetime first
+                Length: length first</i>
+                
+                #tag11 #tag12
+                
+                <i>And 1 more. See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+        assertTrue(stateView.get().textHtml().length() <= limit);
     }
 
 }

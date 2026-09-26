@@ -1,5 +1,6 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.provider;
 
+import com.lonebytesoft.hamster.eventnotifybot.model.provider.ProviderView;
 import com.lonebytesoft.hamster.eventnotifybot.model.provider.mzgb.MzgbGame;
 import com.lonebytesoft.hamster.eventnotifybot.model.provider.mzgb.MzgbGameCategoryDescription;
 import com.lonebytesoft.hamster.eventnotifybot.model.provider.mzgb.MzgbGameData;
@@ -155,6 +156,18 @@ public class MzgbProvider implements Provider {
                             return u;
                         }
                 ));
+    }
+
+    @Override
+    public Optional<ProviderView> getStateView(String data, Integer limit, Integer limitWithImage) {
+        // todo
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<ProviderView> getDiffView(String baseData, String newData, Integer limit, Integer limitWithImage) {
+        // todo
+        throw new UnsupportedOperationException();
     }
 
 }
