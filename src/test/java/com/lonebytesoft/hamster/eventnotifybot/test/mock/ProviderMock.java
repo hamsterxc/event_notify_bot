@@ -1,4 +1,4 @@
-package com.lonebytesoft.hamster.eventnotifybot.test;
+package com.lonebytesoft.hamster.eventnotifybot.test.mock;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.provider.ProviderView;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;

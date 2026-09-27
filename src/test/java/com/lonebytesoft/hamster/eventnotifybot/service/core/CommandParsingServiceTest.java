@@ -9,7 +9,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.Unkn
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Chat;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
-import com.lonebytesoft.hamster.eventnotifybot.test.ProviderMock;
+import com.lonebytesoft.hamster.eventnotifybot.test.mock.ProviderMock;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

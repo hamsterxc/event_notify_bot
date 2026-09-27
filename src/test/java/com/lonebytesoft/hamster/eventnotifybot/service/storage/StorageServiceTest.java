@@ -12,7 +12,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.Settings
 import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
-import com.lonebytesoft.hamster.eventnotifybot.test.DynamoDbServiceMock;
+import com.lonebytesoft.hamster.eventnotifybot.test.mock.DynamoDbServiceMock;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 

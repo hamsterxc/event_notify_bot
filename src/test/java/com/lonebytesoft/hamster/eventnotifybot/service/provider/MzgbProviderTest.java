@@ -1,7 +1,7 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.provider;
 
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
-import com.lonebytesoft.hamster.eventnotifybot.test.HttpServiceMock;
+import com.lonebytesoft.hamster.eventnotifybot.test.mock.HttpServiceMock;
 import org.junit.jupiter.api.Test;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;

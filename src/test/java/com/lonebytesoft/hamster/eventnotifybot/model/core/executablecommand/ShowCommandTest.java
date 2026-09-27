@@ -7,9 +7,9 @@ import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
-import com.lonebytesoft.hamster.eventnotifybot.test.DynamoDbServiceMock;
-import com.lonebytesoft.hamster.eventnotifybot.test.ProviderMock;
-import com.lonebytesoft.hamster.eventnotifybot.test.TelegramApiMock;
+import com.lonebytesoft.hamster.eventnotifybot.test.mock.DynamoDbServiceMock;
+import com.lonebytesoft.hamster.eventnotifybot.test.mock.ProviderMock;
+import com.lonebytesoft.hamster.eventnotifybot.test.mock.TelegramApiMock;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 

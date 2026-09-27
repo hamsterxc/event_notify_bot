@@ -1,4 +1,4 @@
-package com.lonebytesoft.hamster.eventnotifybot.test;
+package com.lonebytesoft.hamster.eventnotifybot.test.mock;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Update;
