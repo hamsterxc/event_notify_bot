@@ -5,10 +5,12 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.Comm
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.ExecutableCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.HelpCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.InvalidCommand;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.ShowCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.StatusCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.UnknownCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Chat;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,9 +18,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class CommandParsingService {
 
@@ -29,6 +34,16 @@ public class CommandParsingService {
     private static final String TELEGRAM_CHAT_TYPE_DIRECT = "private";
 
     private static final Collection<CommandType> UNKNOWN_COMMANDS = EnumSet.of(CommandType.INVALID, CommandType.UNKNOWN);
+
+    private final Map<String, Provider> providers;
+
+    public CommandParsingService(
+            final Collection<Provider> providers
+    ) {
+        this.providers = providers
+                .stream()
+                .collect(Collectors.toMap(Provider::name, Function.identity()));
+    }
 
     public Optional<Command> parseMessage(final Message message) {
         final MessageParts messageParts = Optional.ofNullable(message)
@@ -103,20 +118,44 @@ public class CommandParsingService {
 
     public Optional<ExecutableCommand> parseCommand(final Command command) {
         return Optional.of(switch (CommandType.fromValue(command.command())) {
-            case TEST -> new UnknownCommand(command.chatId(), command.command());
-            case START, HELP -> command.parameters().isEmpty()
-                    ? new HelpCommand(command.chatId())
-                    : noParametersExpected(command);
-            case STATUS -> command.parameters().isEmpty()
-                    ? new StatusCommand(command.chatId())
-                    : noParametersExpected(command);
+            case START, HELP -> helpCommand(command);
+            case STATUS -> statusCommand(command);
+            case SHOW -> showCommand(command);
             case INVALID -> new InvalidCommand(command.chatId(), command.parameters().getFirst());
             case UNKNOWN -> new UnknownCommand(command.chatId(), command.parameters().getFirst());
         });
     }
 
-    private static ExecutableCommand noParametersExpected(final Command command) {
-        return new InvalidCommand(command.chatId(), "No parameters expected for command " + command.command());
+    private static ExecutableCommand helpCommand(final Command command) {
+        final Long chatId = command.chatId();
+        if (command.parameters().isEmpty()) {
+            return new HelpCommand(chatId);
+        } else {
+            return new InvalidCommand(chatId, "No parameters expected for command " + command.command());
+        }
+    }
+
+    private static ExecutableCommand statusCommand(final Command command) {
+        final Long chatId = command.chatId();
+        if (command.parameters().isEmpty()) {
+            return new StatusCommand(chatId);
+        } else {
+            return new InvalidCommand(chatId, "No parameters expected for command " + command.command());
+        }
+    }
+
+    private ExecutableCommand showCommand(final Command command) {
+        final Long chatId = command.chatId();
+        if (command.parameters().size() == 1) {
+            final Provider provider = providers.get(command.parameters().getFirst());
+            if (provider == null) {
+                return new InvalidCommand(chatId, "Unknown provider " + command.parameters().getFirst());
+            } else {
+                return new ShowCommand(chatId, provider);
+            }
+        } else {
+            return new InvalidCommand(chatId, "Exactly 1 parameter expected for command " + command.command());
+        }
     }
 
     private record MessageParts(

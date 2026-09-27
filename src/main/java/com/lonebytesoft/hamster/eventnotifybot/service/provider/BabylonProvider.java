@@ -81,6 +81,11 @@ public class BabylonProvider implements Provider {
     }
 
     @Override
+    public String name() {
+        return "babylon";
+    }
+
+    @Override
     public Optional<String> getData() {
         final HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(URL + URL_SCHEDULE))

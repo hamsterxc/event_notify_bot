@@ -19,17 +19,10 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
-import java.util.function.Supplier;
 
+import static com.lonebytesoft.hamster.eventnotifybot.test.Assertions.assertDynamoDbRecordsEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class EventNotifyBotJobHandlerTest {
 
@@ -40,7 +33,7 @@ public class EventNotifyBotJobHandlerTest {
     private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, WRITE_COST_LIMIT);
     private final TelegramApiMock telegramApi = new TelegramApiMock();
     private final TelegramService telegramService = new TelegramService(telegramApi);
-    private final CommandParsingService commandParsingService = new CommandParsingService();
+    private final CommandParsingService commandParsingService = new CommandParsingService(List.of());
     private final EventNotifyBotJobHandler handler = new EventNotifyBotJobHandler(new ApplicationContextMock(
             storageService,
             telegramService,
@@ -622,43 +615,6 @@ public class EventNotifyBotJobHandlerTest {
 
     private byte[] serialize(Object value) {
         return ZipUtils.compress(jsonMapper.writeValueAsBytes(value));
-    }
-
-    private static void assertDynamoDbRecordsEquals(
-            final Collection<DynamoDbRecord> expected,
-            final Collection<DynamoDbRecord> actual
-    ) {
-        final Supplier<String> failureMessage = () -> "actual records: " + actual;
-        if (expected == null) {
-            assertNull(actual, failureMessage);
-            return;
-        } else {
-            assertNotNull(actual);
-        }
-
-        assertEquals(expected.size(), actual.size(), failureMessage);
-
-        final Collection<DynamoDbRecord> actualRecords = new HashSet<>(actual);
-        expected.forEach(expectedRecord -> {
-            for (final Iterator<DynamoDbRecord> iterator = actualRecords.iterator(); iterator.hasNext(); ) {
-                if (isDynamoDbRecordEqual(expectedRecord, iterator.next())) {
-                    iterator.remove();
-                    break;
-                }
-            }
-        });
-        assertTrue(actualRecords.isEmpty(), failureMessage);
-    }
-
-    private static boolean isDynamoDbRecordEqual(
-            final DynamoDbRecord expected,
-            final DynamoDbRecord actual
-    ) {
-        return ((expected.id() == null) || Objects.equals(expected.id(), actual.id()))
-                && Objects.equals(expected.type(), actual.type())
-                && Objects.equals(expected.subject(), actual.subject())
-                && ((expected.time() == null) || Objects.equals(expected.time(), actual.time()))
-                && Objects.equals(new String(ZipUtils.decompress(expected.data())), new String(ZipUtils.decompress(actual.data())));
     }
 
 }

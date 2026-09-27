@@ -3,10 +3,13 @@ package com.lonebytesoft.hamster.eventnotifybot.service.core;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.HelpCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.InvalidCommand;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.ShowCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.StatusCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.UnknownCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Chat;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
+import com.lonebytesoft.hamster.eventnotifybot.test.ProviderMock;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -18,7 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CommandParsingServiceTest {
 
-    private final CommandParsingService commandParsingService = new CommandParsingService();
+    private final Provider provider = new ProviderMock("provider", null, null, null);
+    private final CommandParsingService commandParsingService = new CommandParsingService(List.of(provider));
 
     @Test
     public void parseMessage_emptyMessage_ignored() {
@@ -93,7 +97,7 @@ public class CommandParsingServiceTest {
                         1L,
                         null,
                         "group",
-                        "/test"
+                        "/show"
                 ))
         );
     }
@@ -246,7 +250,7 @@ public class CommandParsingServiceTest {
                         1L,
                         2L,
                         "group",
-                        "/test " + IntStream.range(0, 500).mapToObj(_ -> "-").collect(Collectors.joining())
+                        "/show " + IntStream.range(0, 500).mapToObj(_ -> "-").collect(Collectors.joining())
                 ))
         );
     }
@@ -265,7 +269,7 @@ public class CommandParsingServiceTest {
                         1L,
                         2L,
                         "private",
-                        "/test " + IntStream.range(0, 500).mapToObj(_ -> "-").collect(Collectors.joining())
+                        "/show " + IntStream.range(0, 500).mapToObj(_ -> "-").collect(Collectors.joining())
                 ))
         );
     }
@@ -277,14 +281,14 @@ public class CommandParsingServiceTest {
                         null,
                         2L,
                         1L,
-                        "test",
-                        List.of("First", "Second")
+                        "show",
+                        List.of("First")
                 )),
                 commandParsingService.parseMessage(message(
                         1L,
                         2L,
                         "group",
-                        "/test First Second"
+                        "/show First"
                 ))
         );
     }
@@ -418,6 +422,74 @@ public class CommandParsingServiceTest {
                         1L,
                         "status",
                         List.of("foo", "bar")
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_showNoParameters_invalid() {
+        assertEquals(
+                Optional.of(new InvalidCommand(
+                        2L,
+                        "Exactly 1 parameter expected for command show"
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "show",
+                        List.of()
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_showOneParameterKnownProvider() {
+        assertEquals(
+                Optional.of(new ShowCommand(
+                        2L,
+                        provider
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "show",
+                        List.of("provider")
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_showOneParameterUnknownProvider_invalid() {
+        assertEquals(
+                Optional.of(new InvalidCommand(
+                        2L,
+                        "Unknown provider foo"
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "show",
+                        List.of("foo")
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_showTwoParameters_invalid() {
+        assertEquals(
+                Optional.of(new InvalidCommand(
+                        2L,
+                        "Exactly 1 parameter expected for command show"
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "show",
+                        List.of("provider", "foo")
                 ))
         );
     }

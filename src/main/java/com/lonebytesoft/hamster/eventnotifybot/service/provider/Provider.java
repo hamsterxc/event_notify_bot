@@ -6,6 +6,8 @@ import java.util.Optional;
 
 public interface Provider {
 
+    String name();
+
     Optional<String> getData();
 
     Optional<ProviderView> getStateView(String data, Integer limit, Integer limitWithImage);

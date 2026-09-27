@@ -45,6 +45,11 @@ public class MzgbProvider implements Provider {
     }
 
     @Override
+    public String name() {
+        return "mzgb";
+    }
+
+    @Override
     public Optional<String> getData() {
         final HttpRequest startPageRequest = HttpRequest.newBuilder()
                 .uri(URI.create(URL))

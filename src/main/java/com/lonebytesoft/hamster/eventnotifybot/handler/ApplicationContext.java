@@ -2,6 +2,8 @@ package com.lonebytesoft.hamster.eventnotifybot.handler;
 
 import com.lonebytesoft.hamster.eventnotifybot.service.HttpService;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.CommandParsingService;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.BabylonProvider;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.MzgbProvider;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramApi;
@@ -13,6 +15,7 @@ import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
+import java.util.List;
 
 public class ApplicationContext {
 
@@ -49,7 +52,10 @@ public class ApplicationContext {
         );
         this.telegramService = new TelegramService(telegramApi);
 
-        this.commandParsingService = new CommandParsingService();
+        this.commandParsingService = new CommandParsingService(List.of(
+                new BabylonProvider(httpService, jsonMapper),
+                new MzgbProvider(httpService, jsonMapper)
+        ));
     }
 
     public void initialize() {
