@@ -12,13 +12,15 @@ public record StatusCommand(
         Long chatId
 ) implements ExecutableCommand {
 
-    private static final String MESSAGE_TEMPLATE = ResourceUtils.read("message/status_command.html");
+    private static final String RESOURCE_FOLDER = "message/command";
+
+    private static final String MESSAGE_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/status.html");
     private static final String SUBSCRIPTIONS_PLACEHOLDER = "%SUBSCRIPTIONS%";
 
-    private static final String SUBSCRIPTION_TEMPLATE = ResourceUtils.read("message/status_command_subscription.html");
+    private static final String SUBSCRIPTION_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/status_subscription.html");
     private static final String SUBSCRIPTION_PROVIDER_PLACEHOLDER = "%PROVIDER%";
 
-    private static final String SUBSCRIPTIONS_EMPTY = ResourceUtils.read("message/status_command_subscriptions_empty.html");
+    private static final String SUBSCRIPTIONS_EMPTY = ResourceUtils.read(RESOURCE_FOLDER + "/status_subscriptions_empty.html");
 
     @Override
     public boolean execute(StorageService storageService, TelegramService telegramService) {

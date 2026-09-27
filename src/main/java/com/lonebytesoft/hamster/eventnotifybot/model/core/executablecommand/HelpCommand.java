@@ -13,7 +13,7 @@ public record HelpCommand(
     private static final String REPOSITORY_PLACEHOLDER = "%REPOSITORY%";
     private static final String COMMIT_ID_PLACEHOLDER = "%COMMIT_ID%";
     private static final String CLEAN_BUILD_NOTICE_PLACEHOLDER = "%CLEAN_BUILD_NOTICE%";
-    private static final String MESSAGE = ResourceUtils.read("message/help_command.html")
+    private static final String MESSAGE = ResourceUtils.read("message/command/help.html")
             .replace(REPOSITORY_PLACEHOLDER, "https://github.com/hamsterxc/event_notify_bot")
             .replace(COMMIT_ID_PLACEHOLDER, Optional.ofNullable(System.getenv("COMMIT_ID")).orElse(""))
             .replace(CLEAN_BUILD_NOTICE_PLACEHOLDER, "true".equalsIgnoreCase(System.getenv("IS_CLEAN_BUILD")) ? "" : "based on ")

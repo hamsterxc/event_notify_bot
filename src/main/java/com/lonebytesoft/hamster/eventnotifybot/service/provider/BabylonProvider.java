@@ -34,7 +34,9 @@ public class BabylonProvider implements Provider {
 
     private static final TypeReference<List<BabylonMovie>> DATA_TYPE = new TypeReference<>(){};
 
-    private static final String MOVIE_TEMPLATE = ResourceUtils.read("message/provider/babylon/movie.html").trim();
+    private static final String RESOURCE_FOLDER = "message/provider/babylon";
+
+    private static final String MOVIE_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/movie.html").trim();
     private static final String MOVIE_BADGE_PLACEHOLDER = "%BADGE_WITH_SPACE%";
     private static final String MOVIE_URL_PLACEHOLDER = "%URL%";
     private static final String MOVIE_TITLE_PLACEHOLDER = "%TITLE%";
@@ -45,20 +47,20 @@ public class BabylonProvider implements Provider {
     private static final int MIN_MOVIE_DESCRIPTION_LENGTH = 10;
     private static final String ELLIPSIS = "...";
 
-    private static final String ERROR_TEMPLATE = ResourceUtils.read("message/provider/babylon/error.html").trim();
+    private static final String ERROR_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/error.html").trim();
 
-    private static final String NO_MOVIES_TEMPLATE = ResourceUtils.read("message/provider/babylon/no_movies.html").trim();
+    private static final String NO_MOVIES_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/no_movies.html").trim();
 
-    private static final String MORE_TEMPLATE = ResourceUtils.read("message/provider/babylon/more.html").trim();
+    private static final String MORE_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/more.html").trim();
     private static final String MORE_COUNT_PLACEHOLDER = "%COUNT%";
 
-    private static final String FULL_LIST_TEMPLATE = ResourceUtils.read("message/provider/babylon/full_list.html").trim();
+    private static final String FULL_LIST_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/full_list.html").trim();
     private static final String FULL_LIST_URL_PLACEHOLDER = "%URL%";
 
     private static final String VIEW_MOVIES_PLACEHOLDER = "%MOVIES%";
     private static final String VIEW_MORE_PLACEHOLDER = "%MORE_WITH_SPACE%";
     private static final String VIEW_FULL_LIST_PLACEHOLDER = "%FULL_LIST%";
-    private static final String VIEW_TEMPLATE = ResourceUtils.read("message/provider/babylon/view.html")
+    private static final String VIEW_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/view.html")
             .replace(VIEW_FULL_LIST_PLACEHOLDER, FULL_LIST_TEMPLATE.replace(FULL_LIST_URL_PLACEHOLDER, URL + URL_SCHEDULE))
             .trim();
 

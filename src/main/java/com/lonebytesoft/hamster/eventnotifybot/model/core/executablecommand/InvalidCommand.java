@@ -9,7 +9,7 @@ public record InvalidCommand(
         String error
 ) implements ExecutableCommand {
 
-    private static final String MESSAGE_TEMPLATE = ResourceUtils.read("message/invalid_command.html");
+    private static final String MESSAGE_TEMPLATE = ResourceUtils.read("message/command/invalid.html");
     private static final String ERROR_PLACEHOLDER = "%ERROR%";
 
     @Override

@@ -9,7 +9,7 @@ public record UnknownCommand(
         String command
 ) implements ExecutableCommand {
 
-    private static final String MESSAGE_TEMPLATE = ResourceUtils.read("message/unknown_command.html");
+    private static final String MESSAGE_TEMPLATE = ResourceUtils.read("message/command/unknown.html");
     private static final String COMMAND_PLACEHOLDER = "%COMMAND%";
 
     @Override
