@@ -36,7 +36,7 @@ public class BabylonProvider implements Provider {
 
     private static final String RESOURCE_FOLDER = "message/provider/babylon";
 
-    private static final String MOVIE_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/movie.html").trim();
+    private static final String MOVIE_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/movie.html");
     private static final String MOVIE_BADGE_PLACEHOLDER = "%BADGE_WITH_SPACE%";
     private static final String MOVIE_URL_PLACEHOLDER = "%URL%";
     private static final String MOVIE_TITLE_PLACEHOLDER = "%TITLE%";
@@ -247,8 +247,14 @@ public class BabylonProvider implements Provider {
                 .replace(MOVIE_LENGTH_PLACEHOLDER, babylonMovie.length())
                 .replace(MOVIE_TAGS_PLACEHOLDER, babylonMovie.tags()
                         .stream()
+                        .map(tag -> tag
+                                .replaceAll("[^A-Za-z0-9_]", "_")
+                                .replaceAll("_{2,}", "_")
+                                .replaceAll("^_|_$", "")
+                        )
                         .map(tag -> "#" + tag)
-                        .collect(Collectors.joining(" ")));
+                        .collect(Collectors.joining(" ")))
+                .trim();
         final String description = babylonMovie.description() + "\n";
         if ((limit == null) || (template.length() - MOVIE_DESCRIPTION_PLACEHOLDER.length() + description.length() <= limit)) {
             return template
