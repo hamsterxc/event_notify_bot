@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -96,22 +97,20 @@ public class BabylonProviderTest {
         assertEquals(
                 List.of(
                         Map.of(
-                                "idTitle", "metropolis-omeu-live-babylon-orchester-berlin",
-                                "idDatetime", "2026-11-08 18:00:00",
+                                "id", "metropolis-omeu-live-babylon-orchester-berlin",
+                                "datetime", 1794157200,
                                 "title", "Metropolis (OmeU) LIVE Babylon Orchester Berlin",
                                 "description", "Metropolis (OmeU) LIVE begleitet vom Babylon Orchester Berlin Metropolis, D 1927, R: Fritz Lang mit…",
-                                "datetime", "So, 08.11. 18:00",
                                 "length", "180 min.",
                                 "url", "https://babylonberlin.eu/orchester/1334-metropolis-live-babylon-orchester-berlin",
                                 "imageUrl", "https://babylonberlin.eu/images/regridart/500x350/images/stummfilme/metropoli_gold_web500.jpg",
                                 "tags", List.of("highlight", "stummfilm", "stummfilm-live", "Orchester")
                         ),
                         Map.of(
-                                "idTitle", "chaplins-the-gold-rush-with-live-orchestra",
-                                "idDatetime", "2026-11-29 18:00:00",
+                                "id", "chaplins-the-gold-rush-with-live-orchestra",
+                                "datetime", 1795971600,
                                 "title", "Chaplin's The Gold Rush with LIVE Orchestra",
                                 "description", "Chaplin's The Gold Rush [Goldrausch] Begleitet vom Babylon Orchester Berlin The Gold Rush [Goldrausch] USA,…",
-                                "datetime", "So, 29.11. 18:00",
                                 "length", "86 min.",
                                 "url", "https://babylonberlin.eu/orchester/4350-chaplin-s-the-gold-rush-with-live-orchestra",
                                 "imageUrl", "https://babylonberlin.eu/images/regridart/500x350/images/stummfilme/goldrush_banner_web500.jpg",
@@ -159,10 +158,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title",
                         "description",
-                        "datetime",
                         "length",
                         "url",
                         null,
@@ -178,7 +176,7 @@ public class BabylonProviderTest {
                 <b><a href="url">title</a></b>
                 description
                 
-                <i>datetime
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length</i>
                 
                 <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
@@ -191,10 +189,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title",
                         "description",
-                        "datetime",
                         "length",
                         "url",
                         null,
@@ -210,7 +207,7 @@ public class BabylonProviderTest {
                 <b><a href="url">title</a></b>
                 description
                 
-                <i>datetime
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length</i>
                 
                 #tag1 #tag2
@@ -225,10 +222,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title",
                         "description",
-                        "datetime",
                         "length",
                         "url",
                         "image-url",
@@ -244,7 +240,7 @@ public class BabylonProviderTest {
                 <b><a href="url">title</a></b>
                 description
                 
-                <i>datetime
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length</i>
                 
                 #tag1 #tag2
@@ -259,10 +255,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title",
                         IntStream.range(0, 10).mapToObj(_ -> "description").collect(Collectors.joining()),
-                        "datetime",
                         "length",
                         "url",
                         null,
@@ -270,16 +265,16 @@ public class BabylonProviderTest {
                 )
         ));
 
-        final int limit = 200;
+        final int limit = 220;
         final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
 
         assertEquals(Optional.of(new ProviderView(
                 null,
                 """
                 <b><a href="url">title</a></b>
-                descriptiondescriptiondescripti...
+                descriptiondescriptiondescriptiondes...
                 
-                <i>datetime
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length</i>
                 
                 #tag1 #tag2
@@ -295,10 +290,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title",
                         IntStream.range(0, 10).mapToObj(_ -> "description").collect(Collectors.joining()),
-                        "datetime",
                         "length",
                         "url",
                         "image-url",
@@ -306,16 +300,16 @@ public class BabylonProviderTest {
                 )
         ));
 
-        final int limit = 200;
+        final int limit = 220;
         final Optional<ProviderView> stateView = provider.getStateView(data, 0, limit);
 
         assertEquals(Optional.of(new ProviderView(
                 "image-url",
                 """
                 <b><a href="url">title</a></b>
-                descriptiondescriptiondescripti...
+                descriptiondescriptiondescriptiondes...
                 
-                <i>datetime
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length</i>
                 
                 #tag1 #tag2
@@ -331,10 +325,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         IntStream.range(0, 10).mapToObj(_ -> "title").collect(Collectors.joining()),
                         "description",
-                        "datetime",
                         "length",
                         "url",
                         null,
@@ -342,7 +335,7 @@ public class BabylonProviderTest {
                 )
         ));
 
-        final int limit = 200;
+        final int limit = 220;
         final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
 
         assertEquals(Optional.of(new ProviderView(
@@ -350,8 +343,10 @@ public class BabylonProviderTest {
                 """
                 <b><a href="url">titletitletitletitletitletitletitletitletitletitle</a></b>
                 
-                <i>datetime
-                Length: length</i>...
+                <i>Thu, 01 Jan 2026, 01:00
+                Length: length</i>
+                
+                #ta...
                 
                 <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
                 """.trim().stripIndent()
@@ -364,10 +359,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         IntStream.range(0, 10).mapToObj(_ -> "title").collect(Collectors.joining()),
                         "description",
-                        "datetime",
                         "length",
                         "url",
                         "image-url",
@@ -375,7 +369,7 @@ public class BabylonProviderTest {
                 )
         ));
 
-        final int limit = 200;
+        final int limit = 220;
         final Optional<ProviderView> stateView = provider.getStateView(data, 0, limit);
 
         assertEquals(Optional.of(new ProviderView(
@@ -383,8 +377,10 @@ public class BabylonProviderTest {
                 """
                 <b><a href="url">titletitletitletitletitletitletitletitletitletitle</a></b>
                 
-                <i>datetime
-                Length: length</i>...
+                <i>Thu, 01 Jan 2026, 01:00
+                Length: length</i>
+                
+                #ta...
                 
                 <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
                 """.trim().stripIndent()
@@ -397,10 +393,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title first",
                         "description first",
-                        "datetime first",
                         "length first",
                         "url first",
                         null,
@@ -408,10 +403,9 @@ public class BabylonProviderTest {
                 ),
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-02T00:00:00Z").getEpochSecond(),
                         "title second",
                         "description second",
-                        "datetime second",
                         "length second",
                         "url second",
                         null,
@@ -427,13 +421,13 @@ public class BabylonProviderTest {
                 <b><a href="url first">title first</a></b>
                 description first
                 
-                <i>datetime first
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length first</i>
                 
                 <b><a href="url second">title second</a></b>
                 description second
 
-                <i>datetime second
+                <i>Fri, 02 Jan 2026, 01:00
                 Length: length second</i>
 
                 #tag_21 #tag_22
@@ -448,10 +442,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title first",
                         "description first",
-                        "datetime first",
                         "length first",
                         "url first",
                         null,
@@ -459,10 +452,9 @@ public class BabylonProviderTest {
                 ),
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-02T00:00:00Z").getEpochSecond(),
                         "title second",
                         "description second",
-                        "datetime second",
                         "length second",
                         "url second",
                         null,
@@ -478,7 +470,7 @@ public class BabylonProviderTest {
                 <b><a href="url first">title first</a></b>
                 description first
                 
-                <i>datetime first
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length first</i>
                 
                 #tag11 #tag12
@@ -486,7 +478,7 @@ public class BabylonProviderTest {
                 <b><a href="url second">title second</a></b>
                 description second
 
-                <i>datetime second
+                <i>Fri, 02 Jan 2026, 01:00
                 Length: length second</i>
 
                 #tag21 #tag22
@@ -501,10 +493,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title first",
                         "description first",
-                        "datetime first",
                         "length first",
                         "url first",
                         null,
@@ -512,10 +503,9 @@ public class BabylonProviderTest {
                 ),
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-02T00:00:00Z").getEpochSecond(),
                         "title second",
                         "description second",
-                        "datetime second",
                         "length second",
                         "url second",
                         "image-url second",
@@ -531,7 +521,7 @@ public class BabylonProviderTest {
                 <b><a href="url first">title first</a></b>
                 description first
                 
-                <i>datetime first
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length first</i>
                 
                 #tag11 #tag12
@@ -539,7 +529,7 @@ public class BabylonProviderTest {
                 <b><a href="url second">title second</a></b>
                 description second
 
-                <i>datetime second
+                <i>Fri, 02 Jan 2026, 01:00
                 Length: length second</i>
 
                 #tag21 #tag22
@@ -554,10 +544,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title first",
                         "description first",
-                        "datetime first",
                         "length first",
                         "url first",
                         "image-url first",
@@ -565,10 +554,9 @@ public class BabylonProviderTest {
                 ),
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-02T00:00:00Z").getEpochSecond(),
                         "title second",
                         "description second",
-                        "datetime second",
                         "length second",
                         "url second",
                         "image-url second",
@@ -584,7 +572,7 @@ public class BabylonProviderTest {
                 <b><a href="url first">title first</a></b>
                 description first
                 
-                <i>datetime first
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length first</i>
                 
                 #tag11 #tag12
@@ -592,7 +580,7 @@ public class BabylonProviderTest {
                 <b><a href="url second">title second</a></b>
                 description second
 
-                <i>datetime second
+                <i>Fri, 02 Jan 2026, 01:00
                 Length: length second</i>
 
                 #tag21 #tag22
@@ -607,10 +595,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title first",
                         "description first",
-                        "datetime first",
                         "length first",
                         "url first",
                         null,
@@ -618,10 +605,9 @@ public class BabylonProviderTest {
                 ),
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-02T00:00:00Z").getEpochSecond(),
                         "title second",
                         "description second",
-                        "datetime second",
                         "length second",
                         "url second",
                         null,
@@ -638,7 +624,7 @@ public class BabylonProviderTest {
                 <b><a href="url first">title first</a></b>
                 description first
                 
-                <i>datetime first
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length first</i>
                 
                 #tag11 #tag12
@@ -654,10 +640,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title first",
                         "description first",
-                        "datetime first",
                         "length first",
                         "url first",
                         "image-url first",
@@ -665,10 +650,9 @@ public class BabylonProviderTest {
                 ),
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-02T00:00:00Z").getEpochSecond(),
                         "title second",
                         "description second",
-                        "datetime second",
                         "length second",
                         "url second",
                         null,
@@ -685,7 +669,7 @@ public class BabylonProviderTest {
                 <b><a href="url first">title first</a></b>
                 description first
                 
-                <i>datetime first
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length first</i>
                 
                 #tag11 #tag12
@@ -701,10 +685,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title first",
                         "description first",
-                        "datetime first",
                         "length first",
                         "url first",
                         null,
@@ -712,10 +695,9 @@ public class BabylonProviderTest {
                 ),
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-02T00:00:00Z").getEpochSecond(),
                         "title second",
                         "description second",
-                        "datetime second",
                         "length second",
                         "url second",
                         "image-url second",
@@ -732,7 +714,7 @@ public class BabylonProviderTest {
                 <b><a href="url first">title first</a></b>
                 description first
                 
-                <i>datetime first
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length first</i>
                 
                 #tag11 #tag12
@@ -748,10 +730,9 @@ public class BabylonProviderTest {
         final String data = jsonMapper.writeValueAsString(List.of(
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
                         "title first",
                         "description first",
-                        "datetime first",
                         "length first",
                         "url first",
                         "image-url first",
@@ -759,10 +740,9 @@ public class BabylonProviderTest {
                 ),
                 new BabylonMovie(
                         null,
-                        null,
+                        Instant.parse("2026-01-02T00:00:00Z").getEpochSecond(),
                         "title second",
                         "description second",
-                        "datetime second",
                         "length second",
                         "url second",
                         "image-url second",
@@ -779,7 +759,7 @@ public class BabylonProviderTest {
                 <b><a href="url first">title first</a></b>
                 description first
                 
-                <i>datetime first
+                <i>Thu, 01 Jan 2026, 01:00
                 Length: length first</i>
                 
                 #tag11 #tag12

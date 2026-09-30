@@ -16,6 +16,10 @@ import tools.jackson.databind.json.JsonMapper;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -34,6 +38,10 @@ public class BabylonProvider implements Provider {
 
     private static final TypeReference<List<BabylonMovie>> DATA_TYPE = new TypeReference<>(){};
 
+    private static final ZoneId DATETIME_ZONE = ZoneId.of("Europe/Berlin");
+    private static final DateTimeFormatter DATETIME_FORMAT_INPUT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(DATETIME_ZONE);
+    private static final DateTimeFormatter DATETIME_FORMAT_VIEW = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy, HH:mm").withZone(DATETIME_ZONE);
+
     private static final String RESOURCE_FOLDER = "message/provider/babylon";
 
     private static final String MOVIE_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/movie.html");
@@ -41,7 +49,7 @@ public class BabylonProvider implements Provider {
     private static final String MOVIE_URL_PLACEHOLDER = "%URL%";
     private static final String MOVIE_TITLE_PLACEHOLDER = "%TITLE%";
     private static final String MOVIE_DESCRIPTION_PLACEHOLDER = "%DESCRIPTION_WITH_LF%";
-    private static final String MOVIE_DATETIME_PLACEHOLDER = "%DATETIME%";
+    private static final String MOVIE_DATETIME_PLACEHOLDER = "%DATETIME_WITH_LF%";
     private static final String MOVIE_LENGTH_PLACEHOLDER = "%LENGTH%";
     private static final String MOVIE_TAGS_PLACEHOLDER = "%TAGS%";
     private static final int MIN_MOVIE_DESCRIPTION_LENGTH = 10;
@@ -109,12 +117,22 @@ public class BabylonProvider implements Provider {
                 .stream()
                 .map(element -> {
                     final Element linkElement = element.selectFirst("> div.inner-mix > h3 > a.mix-title");
+                    final String id = getAttribute(element, "data-title").orElse(null);
                     return new BabylonMovie(
-                            getAttribute(element, "data-title").orElse(null),
-                            getAttribute(element, "data-date").orElse(null),
+                            id,
+                            getAttribute(element, "data-date")
+                                    .map(datetime -> {
+                                        try {
+                                            return DATETIME_FORMAT_INPUT.parse(datetime);
+                                        } catch (DateTimeParseException e) {
+                                            log.warn("Could not parse '{}' movie date '{}': {}", id, datetime, e.getMessage());
+                                            return null;
+                                        }
+                                    })
+                                    .map(datetime -> Instant.from(datetime).getEpochSecond())
+                                    .orElse(null),
                             getOwnText(linkElement).orElse(null),
                             getOwnText(element.selectFirst("> div.inner-mix > div.mix-introtext-outer > p.mix-introtext")).orElse(null),
-                            getOwnText(element.selectFirst("> div.inner-mix > div.mix-extra > p.mix-date")).orElse(null),
                             getOwnText(element.selectFirst("> div.inner-mix > div.mix-extra > p.mix-date > span.runtime")).orElse(null),
                             getAttribute(linkElement, "href").map(link -> URL + link).orElse(null),
                             getAttribute(element.selectFirst("> div.upper-mix > a > img"), "src").orElse(null),
@@ -243,7 +261,9 @@ public class BabylonProvider implements Provider {
                 .replace(MOVIE_BADGE_PLACEHOLDER, (badge == null) || badge.isEmpty() ? "" : badge + " ")
                 .replace(MOVIE_URL_PLACEHOLDER, babylonMovie.url())
                 .replace(MOVIE_TITLE_PLACEHOLDER, babylonMovie.title())
-                .replace(MOVIE_DATETIME_PLACEHOLDER, babylonMovie.datetime())
+                .replace(MOVIE_DATETIME_PLACEHOLDER, Optional.ofNullable(babylonMovie.datetime())
+                        .map(datetime -> DATETIME_FORMAT_VIEW.format(Instant.ofEpochSecond(datetime)) + "\n")
+                        .orElse(""))
                 .replace(MOVIE_LENGTH_PLACEHOLDER, babylonMovie.length())
                 .replace(MOVIE_TAGS_PLACEHOLDER, babylonMovie.tags()
                         .stream()
