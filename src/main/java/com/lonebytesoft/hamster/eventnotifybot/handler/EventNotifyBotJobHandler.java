@@ -16,8 +16,6 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -83,24 +81,10 @@ public class EventNotifyBotJobHandler implements JobHandler {
         }
 
         final Settings settings = storageService.getSettings();
-        final Long telegramUpdatesOffset = Optional.ofNullable(settings.telegramUpdatesOffset())
-                .map(offset -> offset + 1)
-                .orElse(null);
-        final AtomicBoolean hasTelegramPointer = new AtomicBoolean(telegramUpdatesOffset != null);
-        final AtomicLong telegramPointer = new AtomicLong(telegramUpdatesOffset == null ? 0 : telegramUpdatesOffset);
-        final Consumer<ParsedCommand> telegramPointerUpdater = command -> Optional.ofNullable(command.update())
-                .map(Update::id)
-                .ifPresent(updateId -> {
-                    hasTelegramPointer.set(true);
-                    telegramPointer.set(updateId);
-                });
-        final Consumer<ParsedCommand> commandStorageAction = command -> {
-            command.command().ifPresent(storageService::addCommand);
-            telegramPointerUpdater.accept(command);
-        };
+        final TelegramUpdatesTracker telegramUpdatesTracker = new TelegramUpdatesTracker(settings.telegramLastUpdateId());
         budget = process(
                 budget,
-                telegramService.getUpdates(telegramUpdatesOffset)
+                telegramService.getUpdates(telegramUpdatesTracker.getUpdateId())
                         .stream()
                         .sorted(Comparator.comparing(Update::id))
                         .map(update -> new ParsedCommand(
@@ -115,20 +99,26 @@ public class EventNotifyBotJobHandler implements JobHandler {
                         .orElse(null),
                 command -> estimateCost(command, 1), // max of additional cost of incomplete and complete executions
                 command -> {
-                    telegramPointerUpdater.accept(command);
+                    telegramUpdatesTracker.accept(command.update());
                     return 0;
                 },
                 command -> {
-                    commandStorageAction.accept(command);
+                    command.command().ifPresent(storageService::addCommand);
+                    telegramUpdatesTracker.accept(command.update());
                     return 1;
                 },
-                commandStorageAction,
-                telegramPointerUpdater
+                command -> {
+                    command.command().ifPresent(storageService::addCommand);
+                    telegramUpdatesTracker.accept(command.update());
+                },
+                command -> {
+                    telegramUpdatesTracker.accept(command.update());
+                }
         );
         log.debug("Processed Telegram commands, remaining budget: {}/{}", budget, writeCostLimit);
 
         storageService.setSettings(new Settings(
-                hasTelegramPointer.get() ? telegramPointer.get() : null
+                telegramUpdatesTracker.getUpdateId()
         ));
         storageService.flush();
     }
@@ -253,6 +243,29 @@ public class EventNotifyBotJobHandler implements JobHandler {
             Update update,
             Optional<Command> command
     ) {
+    }
+
+    private static class TelegramUpdatesTracker implements Consumer<Update> {
+
+        private Long updateId;
+
+        private TelegramUpdatesTracker(final Long updateId) {
+            this.updateId = updateId;
+        }
+
+        @Override
+        public void accept(Update update) {
+            Optional.ofNullable(update)
+                    .map(Update::id)
+                    .ifPresent(updateId -> this.updateId = this.updateId == null
+                            ? updateId
+                            : Math.max(this.updateId, updateId));
+        }
+
+        public Long getUpdateId() {
+            return updateId;
+        }
+
     }
 
 }

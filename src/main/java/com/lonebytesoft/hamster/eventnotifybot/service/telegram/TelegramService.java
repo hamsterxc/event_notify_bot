@@ -36,12 +36,14 @@ public class TelegramService {
     }
 
     public List<Update> getUpdates(
-            final Long lastUpdate
+            final Long lastUpdateId
     ) {
         final List<Update> updates = new ArrayList<>();
 
         Optional<List<Update>> updatesResponse;
-        Long offset = lastUpdate;
+        Long offset = Optional.ofNullable(lastUpdateId)
+                .map(updateId -> updateId + 1)
+                .orElse(null);
         for (;;) {
             updatesResponse = telegramApi.getUpdates(offset, GET_UPDATES_BATCH_SIZE, GET_UPDATES_TYPES);
             final int size = updatesResponse.map(Collection::size).orElse(0);

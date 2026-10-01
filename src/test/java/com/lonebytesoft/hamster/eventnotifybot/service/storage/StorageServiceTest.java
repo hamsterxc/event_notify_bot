@@ -36,18 +36,23 @@ public class StorageServiceTest {
     @Test
     public void settings() {
         Settings settings = storageService.getSettings();
-        assertNull(settings.telegramUpdatesOffset()); // nothing was fetched yet
+        assertNull(settings.telegramLastUpdateId()); // nothing was fetched yet
 
         assertEquals(0, storageService.fetch()); // nothing in storage
         settings = storageService.getSettings(); // no settings were fetched, transparently returning default
-        assertNull(settings.telegramUpdatesOffset());
+        assertNull(settings.telegramLastUpdateId());
         assertEquals(0, storageService.flush()); // nothing was set, nothing is saved
 
         settings = new Settings(1L);
         storageService.setSettings(settings);
         assertEquals(1, storageService.flush()); // settings saved
         settings = storageService.getSettings();
-        assertEquals(1L, settings.telegramUpdatesOffset());
+        assertEquals(1L, settings.telegramLastUpdateId());
+
+        storageService.setSettings(settings);
+        assertEquals(0, storageService.flush()); // settings did not change
+        settings = storageService.getSettings();
+        assertEquals(1L, settings.telegramLastUpdateId());
 
         settings = new Settings(2L);
         storageService.setSettings(settings);
@@ -55,7 +60,7 @@ public class StorageServiceTest {
         storageService.setSettings(settings);
         assertEquals(1, storageService.flush()); // settings time was updated
         settings = storageService.getSettings();
-        assertEquals(1L, settings.telegramUpdatesOffset());
+        assertEquals(1L, settings.telegramLastUpdateId());
     }
 
     @Test
@@ -67,18 +72,18 @@ public class StorageServiceTest {
 
         assertEquals(2, storageService.fetch());
         Settings settings = storageService.getSettings();
-        assertEquals(2L, settings.telegramUpdatesOffset()); // record with the greater time is used
+        assertEquals(2L, settings.telegramLastUpdateId()); // record with the greater time is used
 
         storageService.setSettings(new Settings(3L));
         assertEquals(1, storageService.flush()); // settings saved
         settings = storageService.getSettings();
-        assertEquals(3L, settings.telegramUpdatesOffset());
+        assertEquals(3L, settings.telegramLastUpdateId());
 
         assertEquals(1, storageService.cleanup(2));
         assertEquals(1, storageService.flush()); // one settings record deleted
         assertEquals(1, storageService.fetch());
         settings = storageService.getSettings();
-        assertEquals(3L, settings.telegramUpdatesOffset());
+        assertEquals(3L, settings.telegramLastUpdateId());
     }
 
     @Test
@@ -500,14 +505,14 @@ public class StorageServiceTest {
         ));
 
         assertEquals(3, storageService.fetch());
-        assertEquals(1L, storageService.getSettings().telegramUpdatesOffset());
+        assertEquals(1L, storageService.getSettings().telegramLastUpdateId());
         assertEquals(1, storageService.getCommands().size());
         assertCommandEquals(command, storageService.getCommands().iterator().next());
 
         assertEquals(1, storageService.cleanup(2));
         assertEquals(1, storageService.flush()); // the unknown record removed
         assertEquals(2, storageService.fetch());
-        assertEquals(1L, storageService.getSettings().telegramUpdatesOffset());
+        assertEquals(1L, storageService.getSettings().telegramLastUpdateId());
         assertEquals(1, storageService.getCommands().size());
         assertCommandEquals(command, storageService.getCommands().iterator().next());
     }

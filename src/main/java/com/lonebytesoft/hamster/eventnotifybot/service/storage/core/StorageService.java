@@ -131,18 +131,25 @@ public class StorageService {
     }
 
     public void setSettings(final Settings settings) {
-        final String id = getSettingsRecords()
-                .findFirst()
-                .map(SettingsRecord::id)
-                .orElseGet(() -> UUID.randomUUID().toString());
-        final SettingsProperties properties = new SettingsProperties(
-                settings.telegramUpdatesOffset()
+        final Optional<SettingsRecord> existingSettings = getSettingsRecords()
+                .findFirst();
+        final SettingsProperties newProperties = new SettingsProperties(
+                settings.telegramLastUpdateId()
         );
-        this.settings.put(new SettingsRecord(
-                id,
-                System.currentTimeMillis(),
-                properties
-        ));
+        final boolean settingsSimilar = existingSettings
+                .map(SettingsRecord::properties)
+                .map(existingProperties -> Objects.equals(existingProperties, newProperties))
+                .orElse(false);
+        if (!settingsSimilar) {
+            final SettingsRecord newSettings = new SettingsRecord(
+                    existingSettings
+                            .map(SettingsRecord::id)
+                            .orElseGet(() -> UUID.randomUUID().toString()),
+                    System.currentTimeMillis(),
+                    newProperties
+            );
+            this.settings.put(newSettings);
+        }
     }
 
     private int cleanupSettings(final int writeCostLimit) {

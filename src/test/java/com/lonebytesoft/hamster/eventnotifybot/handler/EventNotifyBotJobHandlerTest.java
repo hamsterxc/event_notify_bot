@@ -60,6 +60,29 @@ public class EventNotifyBotJobHandlerTest {
     }
 
     /*
+    Given: no commands in storage, settings exist, no Telegram updates.
+    Expected:
+    - settings not updated after multiple runs.
+     */
+    @Test
+    public void run_noCommandsNoMessagesSettingsExist_settingsNotUpdated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        for (int i = 0; i < 3; i++) {
+            storageService.fetch();
+            handler.run(Duration.ZERO);
+        }
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L)))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(), telegramApi.getSentMessages());
+    }
+
+    /*
     Given: 2 commands in storage, no Telegram updates.
     Expected:
     - settings saved in storage with empty offset,
@@ -79,6 +102,34 @@ public class EventNotifyBotJobHandlerTest {
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(null)))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(
+                new TelegramApiMock.SentMessage(12L, null, "Unrecognized command: <b>second</b>"),
+                new TelegramApiMock.SentMessage(11L, null, "Unrecognized command: <b>first</b>")
+        ), telegramApi.getSentMessages());
+    }
+
+    /*
+    Given: 2 commands and settings in storage, no Telegram updates.
+    Expected:
+    - settings not updated,
+    - commands deleted from storage,
+    - 2 messages sent in order of command time.
+     */
+    @Test
+    public void run_fewCommandsNoMessagesSettingsExist_commandsExecutedSettingsNotChanged() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "command", "11", 102L, serialize(new CommandProperties("unknown", List.of("first"))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "command", "12", 101L, serialize(new CommandProperties("unknown", List.of("second"))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("3", "settings", null, 103L, serialize(new SettingsProperties(1001L))))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("3", "settings", null, 103L, serialize(new SettingsProperties(1001L)))
         ), dynamoDbService.read().records());
         assertEquals(List.of(
                 new TelegramApiMock.SentMessage(12L, null, "Unrecognized command: <b>second</b>"),
@@ -234,6 +285,39 @@ public class EventNotifyBotJobHandlerTest {
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(2L)))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(
+                new TelegramApiMock.SentMessage(14L, null, "Unrecognized command: <b>fourth</b>"),
+                new TelegramApiMock.SentMessage(13L, null, "Unrecognized command: <b>third</b>"),
+                new TelegramApiMock.SentMessage(1002L, null, "Unrecognized command: <b>second</b>"),
+                new TelegramApiMock.SentMessage(1001L, null, "Unrecognized command: <b>first</b>")
+        ), telegramApi.getSentMessages());
+    }
+
+    /*
+    Given: 2 commands and settings in storage, 2 Telegram updates.
+    Expected:
+    - settings updated with the biggest offset,
+    - commands deleted from storage,
+    - 4 messages sent: 2 corresponding to commands in order of command time, then 2 corresponding to Telegram updates in order of message id.
+     */
+    @Test
+    public void run_fewCommandsFewMessagesSettingsExist_commandsExecutedThenMessagesProcessedSettingsUpdated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("3", "command", "13", 104L, serialize(new CommandProperties("unknown", List.of("third"))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("4", "command", "14", 103L, serialize(new CommandProperties("unknown", List.of("fourth"))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("5", "settings", null, 103L, serialize(new SettingsProperties(10000L))))
+        ));
+        telegramApi.setUpdates(List.of(
+                new Update(10001L, new Message(11L, 101L, new Chat(1002L, "private"), "/second unknown")),
+                new Update(10002L, new Message(12L, 102L, new Chat(1001L, "private"), "/first unknown"))
+        ));
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("5", "settings", null, null, serialize(new SettingsProperties(10002L)))
         ), dynamoDbService.read().records());
         assertEquals(List.of(
                 new TelegramApiMock.SentMessage(14L, null, "Unrecognized command: <b>fourth</b>"),
