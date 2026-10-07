@@ -272,7 +272,7 @@ public class BabylonProviderTest {
                 null,
                 """
                 <b><a href="url">title</a></b>
-                descriptiondescriptiondescriptiondes...
+                descriptiondescriptionde...
                 
                 <i>Thu, 01 Jan 2026, 01:00
                 Length: length</i>
@@ -282,7 +282,7 @@ public class BabylonProviderTest {
                 <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
                 """.trim().stripIndent()
         )), stateView);
-        assertEquals(limit, stateView.get().textHtml().length());
+        assertTrue(stateView.get().textHtml().length() <= limit);
     }
 
     @Test
@@ -307,7 +307,7 @@ public class BabylonProviderTest {
                 "image-url",
                 """
                 <b><a href="url">title</a></b>
-                descriptiondescriptiondescriptiondes...
+                descriptiondescriptionde...
                 
                 <i>Thu, 01 Jan 2026, 01:00
                 Length: length</i>
@@ -317,7 +317,7 @@ public class BabylonProviderTest {
                 <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
                 """.trim().stripIndent()
         )), stateView);
-        assertEquals(limit, stateView.get().textHtml().length());
+        assertTrue(stateView.get().textHtml().length() <= limit);
     }
 
     @Test
@@ -341,17 +341,10 @@ public class BabylonProviderTest {
         assertEquals(Optional.of(new ProviderView(
                 null,
                 """
-                <b><a href="url">titletitletitletitletitletitletitletitletitletitle</a></b>
-                
-                <i>Thu, 01 Jan 2026, 01:00
-                Length: length</i>
-                
-                #ta...
-                
-                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                <i>1 movie(s) in total. See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
                 """.trim().stripIndent()
         )), stateView);
-        assertEquals(limit, stateView.get().textHtml().length());
+        assertTrue(stateView.get().textHtml().length() <= limit);
     }
 
     @Test
@@ -373,19 +366,12 @@ public class BabylonProviderTest {
         final Optional<ProviderView> stateView = provider.getStateView(data, 0, limit);
 
         assertEquals(Optional.of(new ProviderView(
-                "image-url",
+                null,
                 """
-                <b><a href="url">titletitletitletitletitletitletitletitletitletitle</a></b>
-                
-                <i>Thu, 01 Jan 2026, 01:00
-                Length: length</i>
-                
-                #ta...
-                
-                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                <i>1 movie(s) in total. See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
                 """.trim().stripIndent()
         )), stateView);
-        assertEquals(limit, stateView.get().textHtml().length());
+        assertTrue(stateView.get().textHtml().length() <= limit);
     }
 
     @Test
@@ -416,7 +402,7 @@ public class BabylonProviderTest {
         final Optional<ProviderView> stateView = provider.getStateView(data, null, 0);
 
         assertEquals(Optional.of(new ProviderView(
-                null,
+                null, // both have no image
                 """
                 <b><a href="url first">title first</a></b>
                 description first
@@ -465,7 +451,7 @@ public class BabylonProviderTest {
         final Optional<ProviderView> stateView = provider.getStateView(data, null, 0);
 
         assertEquals(Optional.of(new ProviderView(
-                null,
+                null, // both have no image
                 """
                 <b><a href="url first">title first</a></b>
                 description first
@@ -513,10 +499,10 @@ public class BabylonProviderTest {
                 )
         ));
 
-        final Optional<ProviderView> stateView = provider.getStateView(data, null, 0);
+        final Optional<ProviderView> stateView = provider.getStateView(data, 0, null);
 
         assertEquals(Optional.of(new ProviderView(
-                null,
+                "image-url second", // image of the second one, the first doesn't have any
                 """
                 <b><a href="url first">title first</a></b>
                 description first
@@ -564,10 +550,61 @@ public class BabylonProviderTest {
                 )
         ));
 
-        final Optional<ProviderView> stateView = provider.getStateView(data, null, 0);
+        final Optional<ProviderView> stateView = provider.getStateView(data, 0, null);
 
         assertEquals(Optional.of(new ProviderView(
-                null,
+                null, // both have images but different
+                """
+                <b><a href="url first">title first</a></b>
+                description first
+                
+                <i>Thu, 01 Jan 2026, 01:00
+                Length: length first</i>
+                
+                #tag11 #tag12
+                
+                <b><a href="url second">title second</a></b>
+                description second
+
+                <i>Fri, 02 Jan 2026, 01:00
+                Length: length second</i>
+
+                #tag21 #tag22
+                
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getStateView_twoMoviesWithSameImage() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        null,
+                        Instant.parse("2026-01-01T00:00:00Z").getEpochSecond(),
+                        "title first",
+                        "description first",
+                        "length first",
+                        "url first",
+                        "image-url",
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        null,
+                        Instant.parse("2026-01-02T00:00:00Z").getEpochSecond(),
+                        "title second",
+                        "description second",
+                        "length second",
+                        "url second",
+                        "image-url",
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getStateView(data, 0, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url", // both have the same image
                 """
                 <b><a href="url first">title first</a></b>
                 description first
@@ -619,7 +656,7 @@ public class BabylonProviderTest {
         final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
 
         assertEquals(Optional.of(new ProviderView(
-                null,
+                null, // both have no image
                 """
                 <b><a href="url first">title first</a></b>
                 description first
@@ -661,10 +698,10 @@ public class BabylonProviderTest {
         ));
 
         final int limit = 300;
-        final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
+        final Optional<ProviderView> stateView = provider.getStateView(data, 0, limit);
 
         assertEquals(Optional.of(new ProviderView(
-                "image-url first",
+                "image-url first", // image of the first one, the second is cut completely
                 """
                 <b><a href="url first">title first</a></b>
                 description first
@@ -709,7 +746,7 @@ public class BabylonProviderTest {
         final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
 
         assertEquals(Optional.of(new ProviderView(
-                null,
+                null, // only the second has an image, but it is cut
                 """
                 <b><a href="url first">title first</a></b>
                 description first
@@ -751,10 +788,10 @@ public class BabylonProviderTest {
         ));
 
         final int limit = 300;
-        final Optional<ProviderView> stateView = provider.getStateView(data, limit, 0);
+        final Optional<ProviderView> stateView = provider.getStateView(data, 0, limit);
 
         assertEquals(Optional.of(new ProviderView(
-                "image-url first",
+                "image-url first", // image of the first one, the second is cut completely
                 """
                 <b><a href="url first">title first</a></b>
                 description first

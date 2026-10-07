@@ -20,7 +20,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -40,44 +39,8 @@ public class BabylonProvider implements Provider {
 
     private static final ZoneId DATETIME_ZONE = ZoneId.of("Europe/Berlin");
     private static final DateTimeFormatter DATETIME_FORMAT_INPUT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(DATETIME_ZONE);
-    private static final DateTimeFormatter DATETIME_FORMAT_VIEW = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy, HH:mm").withZone(DATETIME_ZONE);
 
     private static final String RESOURCE_FOLDER = "message/provider/babylon";
-
-    private static final String MOVIE_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/movie.html");
-    private static final String MOVIE_BADGE_PLACEHOLDER = "%BADGE_WITH_SPACE%";
-    private static final String MOVIE_URL_PLACEHOLDER = "%URL%";
-    private static final String MOVIE_TITLE_PLACEHOLDER = "%TITLE%";
-    private static final String MOVIE_DESCRIPTION_PLACEHOLDER = "%DESCRIPTION_WITH_LF%";
-    private static final String MOVIE_DATETIME_PLACEHOLDER = "%DATETIME_WITH_LF%";
-    private static final String MOVIE_LENGTH_PLACEHOLDER = "%LENGTH%";
-    private static final String MOVIE_TAGS_PLACEHOLDER = "%TAGS%";
-    private static final int MIN_MOVIE_DESCRIPTION_LENGTH = 10;
-    private static final String ELLIPSIS = "...";
-
-    private static final String ERROR_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/error.html").trim();
-
-    private static final String NO_MOVIES_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/no_movies.html").trim();
-
-    private static final String MORE_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/more.html").trim();
-    private static final String MORE_COUNT_PLACEHOLDER = "%COUNT%";
-
-    private static final String FULL_LIST_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/full_list.html").trim();
-    private static final String FULL_LIST_URL_PLACEHOLDER = "%URL%";
-
-    private static final String VIEW_MOVIES_PLACEHOLDER = "%MOVIES%";
-    private static final String VIEW_MORE_PLACEHOLDER = "%MORE_WITH_SPACE%";
-    private static final String VIEW_FULL_LIST_PLACEHOLDER = "%FULL_LIST%";
-    private static final String VIEW_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/view.html")
-            .replace(VIEW_FULL_LIST_PLACEHOLDER, FULL_LIST_TEMPLATE.replace(FULL_LIST_URL_PLACEHOLDER, URL + URL_SCHEDULE))
-            .trim();
-
-    private static final String ERROR_VIEW = VIEW_TEMPLATE
-            .replace(VIEW_MOVIES_PLACEHOLDER, ERROR_TEMPLATE)
-            .replace(VIEW_MORE_PLACEHOLDER, "");
-    private static final String NO_MOVIES_VIEW = VIEW_TEMPLATE
-            .replace(VIEW_MOVIES_PLACEHOLDER, NO_MOVIES_TEMPLATE)
-            .replace(VIEW_MORE_PLACEHOLDER, "");
 
     private final HttpService httpService;
     private final JsonMapper jsonMapper;
@@ -175,75 +138,10 @@ public class BabylonProvider implements Provider {
             movies = jsonMapper.readValue(data, DATA_TYPE);
         } catch (JacksonException e) {
             log.warn("Could not parse movies: {}", data);
-            return Optional.of(new ProviderView(
-                    null,
-                    ERROR_VIEW
-            ));
+            return Optional.of(ViewBuilder.getStateErrorView());
         }
 
-        final int size = movies.size();
-        if (size == 0) {
-            return Optional.of(new ProviderView(
-                    null,
-                    NO_MOVIES_VIEW
-            ));
-        }
-
-        Integer textLimit;
-        if (size == 1) {
-            textLimit = Optional.ofNullable(movies.getFirst().imageUrl() == null ? limit : limitWithImage)
-                    .map(currentLimit -> {
-                        final int extraLength = VIEW_TEMPLATE
-                                .replace(VIEW_MOVIES_PLACEHOLDER, "")
-                                .replace(VIEW_MORE_PLACEHOLDER, "")
-                                .length();
-                        return currentLimit - extraLength;
-                    })
-                    .orElse(null);
-        } else {
-            textLimit = Optional.ofNullable(limit)
-                    .map(currentLimit -> {
-                        final int extraLength = VIEW_TEMPLATE
-                                .replace(VIEW_MOVIES_PLACEHOLDER, "")
-                                .replace(VIEW_MORE_PLACEHOLDER, MORE_TEMPLATE.replace(MORE_COUNT_PLACEHOLDER, String.valueOf(size)) + " ")
-                                .length();
-                        return currentLimit - extraLength;
-                    })
-                    .orElse(null);
-        }
-
-        final List<String> movieViews = new ArrayList<>();
-        int leftoverSize = size;
-
-        final String firstView = getView(movies.getFirst(), null, textLimit);
-        movieViews.add(firstView);
-        leftoverSize--;
-        if (textLimit != null) {
-            textLimit -= firstView.length();
-        }
-
-        for (; leftoverSize > 0; leftoverSize--) {
-            final BabylonMovie movie = movies.get(size - leftoverSize);
-            final String movieView = getView(movie, null, null);
-            if ((textLimit == null) || (movieView.length() + 2 <= textLimit)) {
-                movieViews.add(movieView);
-                leftoverSize--;
-                if (textLimit != null) {
-                    textLimit -= movieView.length() + 2;
-                }
-            } else {
-                break;
-            }
-        }
-
-        return Optional.of(new ProviderView(
-                movieViews.size() == 1 ? movies.getFirst().imageUrl() : null,
-                VIEW_TEMPLATE
-                        .replace(VIEW_MOVIES_PLACEHOLDER, String.join("\n\n", movieViews))
-                        .replace(VIEW_MORE_PLACEHOLDER, leftoverSize > 0
-                                ? MORE_TEMPLATE.replace(MORE_COUNT_PLACEHOLDER, String.valueOf(leftoverSize)) + " "
-                                : "")
-        ));
+        return Optional.of(ViewBuilder.getStateView(movies, limit, limitWithImage));
     }
 
     @Override
@@ -252,65 +150,193 @@ public class BabylonProvider implements Provider {
         throw new UnsupportedOperationException();
     }
 
-    private String getView(
-            final BabylonMovie babylonMovie,
-            final String badge,
-            final Integer limit
-    ) {
-        final String template = MOVIE_TEMPLATE
-                .replace(MOVIE_BADGE_PLACEHOLDER, (badge == null) || badge.isEmpty() ? "" : badge + " ")
-                .replace(MOVIE_URL_PLACEHOLDER, babylonMovie.url())
-                .replace(MOVIE_TITLE_PLACEHOLDER, babylonMovie.title())
-                .replace(MOVIE_DATETIME_PLACEHOLDER, Optional.ofNullable(babylonMovie.datetime())
-                        .map(datetime -> DATETIME_FORMAT_VIEW.format(Instant.ofEpochSecond(datetime)) + "\n")
-                        .orElse(""))
-                .replace(MOVIE_LENGTH_PLACEHOLDER, babylonMovie.length())
-                .replace(MOVIE_TAGS_PLACEHOLDER, babylonMovie.tags()
-                        .stream()
-                        .map(tag -> tag
-                                .replaceAll("[^A-Za-z0-9_]", "_")
-                                .replaceAll("_{2,}", "_")
-                                .replaceAll("^_|_$", "")
-                        )
-                        .map(tag -> "#" + tag)
-                        .collect(Collectors.joining(" ")))
-                .trim();
-        final String description = babylonMovie.description() + "\n";
-        if ((limit == null) || (template.length() - MOVIE_DESCRIPTION_PLACEHOLDER.length() + description.length() <= limit)) {
-            return template
-                    .replace(MOVIE_DESCRIPTION_PLACEHOLDER, description);
+    private static class ViewBuilder {
+
+        private static final String DELIMITER = "\n\n";
+
+        private static final String FOOTER_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/footer.html").trim();
+        private static final String FOOTER_CONTENT_PLACEHOLDER = "%CONTENT%";
+        private static final String FOOTER_DELIMITER = " ";
+
+        private static final String ERROR_VIEW = ResourceUtils.read(RESOURCE_FOLDER + "/error.html").trim();
+
+        private static final String NO_MOVIES_VIEW = ResourceUtils.read(RESOURCE_FOLDER + "/no_movies.html").trim();
+
+        private static final String FOOTER_MORE_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/footer_more.html").trim();
+        private static final String FOOTER_MORE_COUNT_PLACEHOLDER = "%COUNT%";
+
+        private static final String FOOTER_TOTAL_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/footer_total.html").trim();
+        private static final String FOOTER_TOTAL_COUNT_PLACEHOLDER = "%COUNT%";
+
+        private static final String FULL_LIST_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/full_list.html").trim();
+        private static final String FULL_LIST_URL_PLACEHOLDER = "%URL%";
+        private static final String FULL_LIST_VIEW = FULL_LIST_TEMPLATE.replace(FULL_LIST_URL_PLACEHOLDER, URL + URL_SCHEDULE);
+
+        private static final ProviderView STATE_ERROR_VIEW = new ProviderView(
+                null,
+                getViewText(ERROR_VIEW, getFooterElements(null, null, 0))
+        );
+        private static final ProviderView STATE_EMPTY_VIEW = new ProviderView(
+                null,
+                getViewText(NO_MOVIES_VIEW, getFooterElements(null, null, 0))
+        );
+
+        public static ProviderView getStateErrorView() {
+            return STATE_ERROR_VIEW;
         }
 
-        log.info("Too long view of a movie, limit {}: {}", limit, babylonMovie);
-        final String beforeDescription = template.substring(0, template.indexOf(MOVIE_DESCRIPTION_PLACEHOLDER));
-        final String afterDescription = template.substring(template.indexOf(MOVIE_DESCRIPTION_PLACEHOLDER) + MOVIE_DESCRIPTION_PLACEHOLDER.length());
-        final int possibleDescriptionLength = limit - (beforeDescription.length() + afterDescription.length());
-        if (possibleDescriptionLength < 0) {
-            log.warn("Too long view of a movie even without description, limit {}: {}", limit, babylonMovie);
-            return truncate(beforeDescription + afterDescription, limit);
-        } else if (possibleDescriptionLength == 0) {
-            return beforeDescription + afterDescription;
-        } else if (possibleDescriptionLength <= MIN_MOVIE_DESCRIPTION_LENGTH) {
-            if (description.length() <= MIN_MOVIE_DESCRIPTION_LENGTH) {
-                return beforeDescription + description + afterDescription;
-            } else {
-                return beforeDescription + afterDescription;
+        public static ProviderView getStateView(
+                final List<BabylonMovie> movies,
+                final Integer limit,
+                final Integer limitWithImage
+        ) {
+            if (movies.isEmpty()) {
+                return STATE_EMPTY_VIEW;
             }
-        } else if (description.length() <= possibleDescriptionLength) {
-            return beforeDescription + description + afterDescription;
-        } else {
-            return beforeDescription + truncate(description, possibleDescriptionLength - 1) + "\n" + afterDescription;
+
+            final int size = movies.size();
+            final int reserved = getViewText(DELIMITER, getFooterElements(FOOTER_MORE_TEMPLATE, FOOTER_MORE_COUNT_PLACEHOLDER, size)).length() - DELIMITER.length();
+            final ProviderViewBuilder viewBuilder = new ProviderViewBuilder(
+                    DELIMITER,
+                    limit == null ? null : limit - reserved,
+                    limitWithImage == null ? null : limitWithImage - reserved
+            );
+            int leftover = size;
+            for (; leftover > 0; leftover--) {
+                final BabylonMovie movie = movies.get(size - leftover);
+                final Function<Integer, String> limitedView = currentLimit -> MovieViewBuilder.getMovieView(movie, null, currentLimit);
+                if (!viewBuilder.append(limitedView, movie.imageUrl())) {
+                    break;
+                }
+            }
+
+            final ProviderView bodyView = viewBuilder.build();
+            return new ProviderView(
+                    bodyView.imageUrl(),
+                    getViewText(bodyView.textHtml(), leftover == size
+                            ? getFooterElements(FOOTER_TOTAL_TEMPLATE, FOOTER_TOTAL_COUNT_PLACEHOLDER, leftover)
+                            : getFooterElements(FOOTER_MORE_TEMPLATE, FOOTER_MORE_COUNT_PLACEHOLDER, leftover))
+            );
         }
+
+        private static List<String> getFooterElements(
+                final String template,
+                final String countPlaceholder,
+                final int count
+        ) {
+            return List.of(
+                    count > 0
+                            ? template.replace(countPlaceholder, String.valueOf(count))
+                            : "",
+                    FULL_LIST_VIEW
+            );
+        }
+
+        private static String getViewText(
+                final String body,
+                final List<String> footerElements
+        ) {
+            return join(
+                    DELIMITER,
+                    List.of(
+                            Optional.ofNullable(body).orElse(""),
+                            FOOTER_TEMPLATE.replace(FOOTER_CONTENT_PLACEHOLDER, join(FOOTER_DELIMITER, footerElements))
+                    )
+            );
+        }
+
+        private static String join(
+                final String delimiter,
+                final List<String> strings
+        ) {
+            return strings
+                    .stream()
+                    .filter(string -> (string != null) && !string.isEmpty())
+                    .collect(Collectors.joining(delimiter));
+        }
+
     }
 
-    private String truncate(final String s, final int limit) {
-        if (s.length() <= limit) {
-            return s;
-        } else {
-            return limit < ELLIPSIS.length()
-                    ? ""
-                    : s.substring(0, limit - ELLIPSIS.length()).trim() + ELLIPSIS;
+    private static class MovieViewBuilder {
+
+        private static final String TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/movie.html");
+        private static final String BADGE_PLACEHOLDER = "%BADGE_WITH_SPACE%";
+        private static final String URL_PLACEHOLDER = "%URL%";
+        private static final String TITLE_PLACEHOLDER = "%TITLE%";
+        private static final String DESCRIPTION_PLACEHOLDER = "%DESCRIPTION_WITH_LF%";
+        private static final String DATETIME_PLACEHOLDER = "%DATETIME_WITH_LF%";
+        private static final String LENGTH_PLACEHOLDER = "%LENGTH%";
+        private static final String TAGS_PLACEHOLDER = "%TAGS%";
+
+        private static final DateTimeFormatter DATETIME_FORMAT_VIEW = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy, HH:mm").withZone(DATETIME_ZONE);
+        private static final int MIN_DESCRIPTION_LENGTH = 10;
+        private static final String ELLIPSIS = "...";
+
+        public static String getMovieView(
+                final BabylonMovie babylonMovie,
+                final String badge,
+                final Integer limit
+        ) {
+            final String template = TEMPLATE
+                    .replace(BADGE_PLACEHOLDER, (badge == null) || badge.isEmpty() ? "" : badge + " ")
+                    .replace(URL_PLACEHOLDER, babylonMovie.url())
+                    .replace(TITLE_PLACEHOLDER, babylonMovie.title())
+                    .replace(DATETIME_PLACEHOLDER, Optional.ofNullable(babylonMovie.datetime())
+                            .map(datetime -> DATETIME_FORMAT_VIEW.format(Instant.ofEpochSecond(datetime)) + "\n")
+                            .orElse(""))
+                    .replace(LENGTH_PLACEHOLDER, babylonMovie.length())
+                    .replace(TAGS_PLACEHOLDER, babylonMovie.tags()
+                            .stream()
+                            .map(tag -> tag
+                                    .replaceAll("[^A-Za-z0-9_]", "_")
+                                    .replaceAll("_{2,}", "_")
+                                    .replaceAll("^_|_$", "")
+                            )
+                            .map(tag -> "#" + tag)
+                            .collect(Collectors.joining(" ")))
+                    .trim();
+            final String description = babylonMovie.description() + "\n";
+            final String view = template
+                    .replace(DESCRIPTION_PLACEHOLDER, description);
+            if ((limit == null) || (view.length() <= limit)) {
+                return view;
+            }
+
+            log.debug("Too long view of a movie, limit {}: {}", limit, babylonMovie);
+            final String[] nonDescriptionParts = template.split(DESCRIPTION_PLACEHOLDER);
+            if (nonDescriptionParts.length != 2) {
+                log.warn("Unexpected number of description placeholders ({}): {}", nonDescriptionParts.length, TEMPLATE);
+                return null;
+            }
+
+            final int possibleDescriptionLength = limit - (nonDescriptionParts[0].length() + nonDescriptionParts[1].length());
+            if (possibleDescriptionLength < 0) {
+                return null;
+            } else if (possibleDescriptionLength == 0) {
+                return nonDescriptionParts[0] + nonDescriptionParts[1];
+            } else if (possibleDescriptionLength <= MIN_DESCRIPTION_LENGTH) {
+                if (description.length() <= MIN_DESCRIPTION_LENGTH) {
+                    return nonDescriptionParts[0] + description + nonDescriptionParts[1];
+                } else {
+                    return nonDescriptionParts[0] + nonDescriptionParts[1];
+                }
+            } else if (description.length() <= possibleDescriptionLength) {
+                return nonDescriptionParts[0] + description + nonDescriptionParts[1];
+            } else {
+                return nonDescriptionParts[0] + truncate(description, possibleDescriptionLength - 1) + "\n" + nonDescriptionParts[1];
+            }
         }
+
+        private static String truncate(final String s, final int limit) {
+            if (s.length() <= limit) {
+                return s;
+            } else {
+                return limit < ELLIPSIS.length()
+                        ? ""
+                        : s.substring(0, limit - ELLIPSIS.length()).trim() + ELLIPSIS;
+            }
+        }
+
     }
 
 }
