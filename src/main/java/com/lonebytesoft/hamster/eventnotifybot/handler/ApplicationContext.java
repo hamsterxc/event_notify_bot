@@ -15,6 +15,7 @@ import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
+import java.time.InstantSource;
 import java.util.List;
 
 public class ApplicationContext {
@@ -53,7 +54,7 @@ public class ApplicationContext {
         this.telegramService = new TelegramService(telegramApi);
 
         this.commandParsingService = new CommandParsingService(List.of(
-                new BabylonProvider(httpService, jsonMapper),
+                new BabylonProvider(httpService, jsonMapper, InstantSource.system()),
                 new MzgbProvider(httpService, jsonMapper)
         ));
     }

@@ -9,6 +9,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
+import java.time.InstantSource;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +26,7 @@ public class BabylonProviderTest {
 
     private final HttpServiceMock httpService = new HttpServiceMock();
     private final JsonMapper jsonMapper = new JsonMapper();
-    private final Provider provider = new BabylonProvider(httpService, jsonMapper);
+    private final Provider provider = new BabylonProvider(httpService, jsonMapper, InstantSource.fixed(Instant.parse("2026-01-01T00:00:00Z")));
 
     @Test
     public void getData_noResponse_noData() {
@@ -805,6 +806,960 @@ public class BabylonProviderTest {
                 """.trim().stripIndent()
         )), stateView);
         assertTrue(stateView.get().textHtml().length() <= limit);
+    }
+
+    @Test
+    public void getDiffView_oldViewInvalid_noView() {
+        final String dataOld = "{}";
+        final String dataNew = jsonMapper.writeValueAsString(List.of());
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.empty(), stateView);
+    }
+
+    @Test
+    public void getDiffView_newViewInvalid_noView() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of());
+        final String dataNew = "{}";
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.empty(), stateView);
+    }
+
+    @Test
+    public void getDiffView_oneMovieNoDiff_noView() {
+        final String data = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(data, data, null, null);
+
+        assertEquals(Optional.empty(), stateView);
+    }
+
+    @Test
+    public void getDiffView_oneMovieWithoutImageCreated_diffWithoutImage() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of());
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        null,
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url">title</a></b>
+                description
+
+                <i>Thu, 01 Jan 2026, 13:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_oneMovieWithImageCreated_diffWithImage() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of());
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url",
+                """
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url">title</a></b>
+                description
+
+                <i>Thu, 01 Jan 2026, 13:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_twoMoviesWithoutImageCreated_diffWithoutImage() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of());
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title-first",
+                        "description-first",
+                        "length-first",
+                        "url-first",
+                        null,
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        "second",
+                        Instant.parse("2026-01-02T12:00:00Z").getEpochSecond(),
+                        "title-second",
+                        "description-second",
+                        "length-second",
+                        "url-second",
+                        null,
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url-first">title-first</a></b>
+                description-first
+
+                <i>Thu, 01 Jan 2026, 13:00
+                Length: length-first</i>
+
+                #tag11 #tag12
+
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url-second">title-second</a></b>
+                description-second
+
+                <i>Fri, 02 Jan 2026, 13:00
+                Length: length-second</i>
+
+                #tag21 #tag22
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_twoMoviesOneWithImageCreated_diffWithImage() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of());
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title-first",
+                        "description-first",
+                        "length-first",
+                        "url-first",
+                        null,
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        "second",
+                        Instant.parse("2026-01-02T12:00:00Z").getEpochSecond(),
+                        "title-second",
+                        "description-second",
+                        "length-second",
+                        "url-second",
+                        "image-url-second",
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url-second",
+                """
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url-first">title-first</a></b>
+                description-first
+
+                <i>Thu, 01 Jan 2026, 13:00
+                Length: length-first</i>
+
+                #tag11 #tag12
+
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url-second">title-second</a></b>
+                description-second
+
+                <i>Fri, 02 Jan 2026, 13:00
+                Length: length-second</i>
+
+                #tag21 #tag22
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_twoMoviesWithImagesCreated_diffWithoutImage() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of());
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title-first",
+                        "description-first",
+                        "length-first",
+                        "url-first",
+                        "image-url-first",
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        "second",
+                        Instant.parse("2026-01-02T12:00:00Z").getEpochSecond(),
+                        "title-second",
+                        "description-second",
+                        "length-second",
+                        "url-second",
+                        "image-url-second",
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url-first">title-first</a></b>
+                description-first
+
+                <i>Thu, 01 Jan 2026, 13:00
+                Length: length-first</i>
+
+                #tag11 #tag12
+
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url-second">title-second</a></b>
+                description-second
+
+                <i>Fri, 02 Jan 2026, 13:00
+                Length: length-second</i>
+
+                #tag21 #tag22
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_twoMoviesWithImagesCreatedOneOutdated_diffWithImage() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of());
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2025-01-01T12:00:00Z").getEpochSecond(),
+                        "title-first",
+                        "description-first",
+                        "length-first",
+                        "url-first",
+                        "image-url-first",
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        "second",
+                        Instant.parse("2026-01-02T12:00:00Z").getEpochSecond(),
+                        "title-second",
+                        "description-second",
+                        "length-second",
+                        "url-second",
+                        "image-url-second",
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url-second",
+                """
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url-second">title-second</a></b>
+                description-second
+
+                <i>Fri, 02 Jan 2026, 13:00
+                Length: length-second</i>
+
+                #tag21 #tag22
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_twoMoviesWithSameImageCreated_diffWithImage() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of());
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title-first",
+                        "description-first",
+                        "length-first",
+                        "url-first",
+                        "image-url-second",
+                        List.of("tag11", "tag12")
+                ),
+                new BabylonMovie(
+                        "second",
+                        Instant.parse("2026-01-02T12:00:00Z").getEpochSecond(),
+                        "title-second",
+                        "description-second",
+                        "length-second",
+                        "url-second",
+                        "image-url-second",
+                        List.of("tag21", "tag22")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url-second",
+                """
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url-first">title-first</a></b>
+                description-first
+
+                <i>Thu, 01 Jan 2026, 13:00
+                Length: length-first</i>
+
+                #tag11 #tag12
+
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url-second">title-second</a></b>
+                description-second
+
+                <i>Fri, 02 Jan 2026, 13:00
+                Length: length-second</i>
+
+                #tag21 #tag22
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_oneMovieTimeUpdated() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T13:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url",
+                """
+                &#x270d; <i>Movie rescheduled</i>
+                <b><a href="url">title</a></b>
+                description
+
+                <i><s>Thu, 01 Jan 2026, 13:00</s> -> Thu, 01 Jan 2026, 14:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_oneMovieUpdatedSameTime_noDiff() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title-new",
+                        "description-new",
+                        "length-new",
+                        "url-new",
+                        "image-url-new",
+                        List.of("tag11", "tag21")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.empty(), stateView);
+    }
+
+    @Test
+    public void getDiffView_oneMovieTimeUpdatedBothInPast_noDiff() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2025-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2025-01-01T13:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.empty(), stateView);
+    }
+
+    @Test
+    public void getDiffView_oneMovieTimeUpdatedIntoPast_diffWithDeleted() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2025-01-01T13:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                &#x274c; <i>Movie cancelled</i>
+                <b>title</b>
+                description
+
+                <i>Thu, 01 Jan 2026, 13:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_oneMovieTimeUpdatedIntoFuture_diffWithCreated() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2025-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T13:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url",
+                """
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url">title</a></b>
+                description
+
+                <i>Thu, 01 Jan 2026, 14:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_oneMovieWithoutImageDeleted_diffWithoutImage() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        null,
+                        List.of("tag1", "tag2")
+                )
+        ));
+        final String dataNew = jsonMapper.writeValueAsString(List.of());
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                &#x274c; <i>Movie cancelled</i>
+                <b>title</b>
+                description
+
+                <i>Thu, 01 Jan 2026, 13:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_oneMovieWithImageDeleted_diffWithImage() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+        final String dataNew = jsonMapper.writeValueAsString(List.of());
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                null,
+                """
+                &#x274c; <i>Movie cancelled</i>
+                <b>title</b>
+                description
+
+                <i>Thu, 01 Jan 2026, 13:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_twoMoviesSameIdOneRescheduled_diffOneUpdate() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                ),
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-02T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                ),
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-02T13:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url",
+                """
+                &#x270d; <i>Movie rescheduled</i>
+                <b><a href="url">title</a></b>
+                description
+
+                <i><s>Fri, 02 Jan 2026, 13:00</s> -> Fri, 02 Jan 2026, 14:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_twoMoviesSameIdOneRescheduledWithDifferentId_diffOneCreateOneDelete() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                ),
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-02T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                ),
+                new BabylonMovie(
+                        "second",
+                        Instant.parse("2026-01-02T13:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url",
+                """
+                &#x274c; <i>Movie cancelled</i>
+                <b>title</b>
+                description
+
+                <i>Fri, 02 Jan 2026, 13:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url">title</a></b>
+                description
+
+                <i>Fri, 02 Jan 2026, 14:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_twoMoviesSameIdIntoThreeMovies_diffOneCreateOneUpdate() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                ),
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-02T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                ),
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-02T13:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                ),
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-03T13:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url",
+                """
+                &#x270d; <i>Movie rescheduled</i>
+                <b><a href="url">title</a></b>
+                description
+
+                <i><s>Fri, 02 Jan 2026, 13:00</s> -> Fri, 02 Jan 2026, 14:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                &#x1f195; <i>New movie!</i>
+                <b><a href="url">title</a></b>
+                description
+
+                <i>Sat, 03 Jan 2026, 14:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
+    }
+
+    @Test
+    public void getDiffView_threeMoviesSameIdIntoTwoMovies_diffOneDeleteOneUpdate() {
+        final String dataOld = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                ),
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-02T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                ),
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-03T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+        final String dataNew = jsonMapper.writeValueAsString(List.of(
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-01T12:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                ),
+                new BabylonMovie(
+                        "first",
+                        Instant.parse("2026-01-03T13:00:00Z").getEpochSecond(),
+                        "title",
+                        "description",
+                        "length",
+                        "url",
+                        "image-url",
+                        List.of("tag1", "tag2")
+                )
+        ));
+
+        final Optional<ProviderView> stateView = provider.getDiffView(dataOld, dataNew, null, null);
+
+        assertEquals(Optional.of(new ProviderView(
+                "image-url",
+                """
+                &#x274c; <i>Movie cancelled</i>
+                <b>title</b>
+                description
+
+                <i>Fri, 02 Jan 2026, 13:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                &#x270d; <i>Movie rescheduled</i>
+                <b><a href="url">title</a></b>
+                description
+
+                <i><s>Sat, 03 Jan 2026, 13:00</s> -> Sat, 03 Jan 2026, 14:00
+                Length: length</i>
+
+                #tag1 #tag2
+
+                <i>See the full schedule at <a href="https://babylonberlin.eu/programm">Babylon</a>.</i>
+                """.trim().stripIndent()
+        )), stateView);
     }
 
 }
