@@ -40,25 +40,39 @@ public class EventNotifyBotJobHandler implements JobHandler {
     @Override
     public void run(Duration extraTimeout) throws Exception {
         int budget = writeCostLimit;
-        final Collection<Long> telegramChatsUsed = new HashSet<>();
-        final Function<Optional<Long>, Boolean> telegramChatUsedChecker = chatId -> chatId
-                .map(id -> {
-                    if (telegramChatsUsed.contains(id)) {
-                        return false;
-                    } else {
-                        telegramChatsUsed.add(id);
-                        return true;
-                    }
-                })
-                .orElse(false);
+        final TelegramChatsTracker telegramChatsTracker = new TelegramChatsTracker();
 
-        budget = process(
-                budget,
+        budget -= processCommands(writeCostLimit, telegramChatsTracker);
+        log.debug("Processed commands, budget remaining: {}/{}", budget, writeCostLimit);
+    }
+
+    /**
+     * Process both stored and Telegram commands, keeping track of write budget and Telegram chats accessed.
+     * @param budget write cost budget
+     * @param telegramChatsTracker the tracker of Telegram chats accessed
+     * @return write cost actually consumed
+     */
+    private int processCommands(
+            final int budget,
+            final TelegramChatsTracker telegramChatsTracker
+    ) {
+        int remainingBudget = budget;
+
+        remainingBudget = process(
+                remainingBudget,
                 storageService.getCommands()
                         .stream()
                         .sorted(Comparator.comparing(Command::time))
                         .toList(),
-                command -> telegramChatUsedChecker.apply(Optional.ofNullable(command.chatId())),
+                command -> {
+                    final Long chatId = command.chatId();
+                    if (chatId == null) {
+                        log.warn("Chat id missing in stored command: {}", command);
+                        return false;
+                    } else {
+                        return telegramChatsTracker.isAllowed(chatId);
+                    }
+                },
                 command -> commandParsingService.parseCommand(command)
                         .orElse(null),
                 command -> estimateCost(command, 1), // max of additional cost of incomplete and complete executions
@@ -70,20 +84,19 @@ public class EventNotifyBotJobHandler implements JobHandler {
                 _ -> {},
                 command -> storageService.removeCommand(command.id())
         );
-        log.debug("Processed stored commands, remaining budget: {}/{}", budget, writeCostLimit);
+        log.debug("Processed stored commands, estimated budget remaining: {}/{}", remainingBudget, budget);
 
-        // to save updated settings
-        if (budget < 1) {
-            storageService.flush();
-            return;
+        // to potentially save the updated settings
+        if (remainingBudget < 1) {
+            return storageService.flush();
         } else {
-            budget -= 1;
+            remainingBudget -= 1;
         }
 
         final Settings settings = storageService.getSettings();
         final TelegramUpdatesTracker telegramUpdatesTracker = new TelegramUpdatesTracker(settings.telegramLastUpdateId());
-        budget = process(
-                budget,
+        remainingBudget = process(
+                remainingBudget,
                 telegramService.getUpdates(telegramUpdatesTracker.getUpdateId())
                         .stream()
                         .sorted(Comparator.comparing(Update::id))
@@ -93,7 +106,15 @@ public class EventNotifyBotJobHandler implements JobHandler {
                                         .flatMap(commandParsingService::parseMessage)
                         ))
                         .toList(),
-                command -> telegramChatUsedChecker.apply(command.command().map(Command::chatId)),
+                command -> {
+                    final Optional<Long> chatId = command.command().map(Command::chatId);
+                    if (chatId.isEmpty()) {
+                        log.warn("Chat id missing in Telegram command: {}", command);
+                        return false;
+                    } else {
+                        return telegramChatsTracker.isAllowed(chatId.get());
+                    }
+                },
                 command -> command.command()
                         .flatMap(commandParsingService::parseCommand)
                         .orElse(null),
@@ -115,12 +136,12 @@ public class EventNotifyBotJobHandler implements JobHandler {
                     telegramUpdatesTracker.accept(command.update());
                 }
         );
-        log.debug("Processed Telegram commands, remaining budget: {}/{}", budget, writeCostLimit);
+        log.debug("Processed Telegram commands, estimated budget remaining: {}/{}", remainingBudget, budget);
 
         storageService.setSettings(new Settings(
                 telegramUpdatesTracker.getUpdateId()
         ));
-        storageService.flush();
+        return storageService.flush();
     }
 
     private Integer estimateCost(
@@ -134,6 +155,21 @@ public class EventNotifyBotJobHandler implements JobHandler {
                   .orElse(null);
     }
 
+    /**
+     * Process the entities (commands), keeping track of write budget.
+     * All cost calculators must return the upper bound of the cost.
+     * @param budget write cost budget
+     * @param entities entities to process
+     * @param condition the guard signalling whether the entity can be processed
+     * @param commandConverter the converter of an entity into an {@link ExecutableCommand}
+     * @param costCalculator the calculator of cost of the {@link ExecutableCommand}
+     * @param onMissingCommand the action to execute in case an entity could not be converted to an  {@link ExecutableCommand}, returning the cost of this action
+     * @param onSkippedCommand the action to execute in case the {@link ExecutableCommand} must be skipped, returning the cost of this action
+     * @param onIncompleteExecution the action to execute in case the {@link ExecutableCommand} has not finished its execution yet (see {@link ExecutableCommand#execute})
+     * @param onCompleteExecution the action to execute in case the {@link ExecutableCommand} has finished its execution
+     * @return the remaining estimated budget
+     * @param <T> the entity type
+     */
     private <T> int process(
             final int budget,
             final List<T> entities,
@@ -243,6 +279,21 @@ public class EventNotifyBotJobHandler implements JobHandler {
             Update update,
             Optional<Command> command
     ) {
+    }
+
+    private static class TelegramChatsTracker {
+
+        private final Collection<Long> chatsUsed = new HashSet<>();
+
+        public boolean isAllowed(final long chatId) {
+            if (chatsUsed.contains(chatId)) {
+                return false;
+            } else {
+                chatsUsed.add(chatId);
+                return true;
+            }
+        }
+
     }
 
     private static class TelegramUpdatesTracker implements Consumer<Update> {
