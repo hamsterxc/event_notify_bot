@@ -3,6 +3,9 @@ package com.lonebytesoft.hamster.eventnotifybot.handler;
 import com.lonebytesoft.hamster.eventnotifybot.service.HttpService;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.CommandParsingService;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.BabylonProvider;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.time.limiter.HourOfDayLimiter;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.time.scheduler.RandomRateScheduler;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramApi;
@@ -15,6 +18,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 import java.time.InstantSource;
+import java.util.Collection;
 import java.util.List;
 
 public class ApplicationContext {
@@ -52,9 +56,22 @@ public class ApplicationContext {
         );
         this.telegramService = new TelegramService(telegramApi);
 
-        this.commandParsingService = new CommandParsingService(List.of(
-                new BabylonProvider(httpService, jsonMapper, InstantSource.system())
-        ));
+        final InstantSource instantSource = InstantSource.system();
+        final Collection<Provider> providers = List.of(
+                new BabylonProvider(
+                        // updating daily from 08:00 to 20:00, every 1.5-2.5 hours
+                        new RandomRateScheduler(
+                                Duration.ofHours(2),
+                                0.25,
+                                List.of(new HourOfDayLimiter(BabylonProvider.TIMEZONE, 8, 20)),
+                                Duration.ofDays(1)
+                        ),
+                        httpService,
+                        jsonMapper,
+                        instantSource
+                )
+        );
+        this.commandParsingService = new CommandParsingService(providers);
     }
 
     public void initialize() {

@@ -3,6 +3,7 @@ package com.lonebytesoft.hamster.eventnotifybot.service.provider;
 import com.lonebytesoft.hamster.eventnotifybot.model.provider.ProviderView;
 import com.lonebytesoft.hamster.eventnotifybot.model.provider.babylon.BabylonMovie;
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.time.scheduler.DisabledScheduler;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.HttpServiceMock;
 import org.junit.jupiter.api.Test;
 import tools.jackson.core.type.TypeReference;
@@ -26,7 +27,12 @@ public class BabylonProviderTest {
 
     private final HttpServiceMock httpService = new HttpServiceMock();
     private final JsonMapper jsonMapper = new JsonMapper();
-    private final Provider provider = new BabylonProvider(httpService, jsonMapper, InstantSource.fixed(Instant.parse("2026-01-01T00:00:00Z")));
+    private final Provider provider = new BabylonProvider(
+            new DisabledScheduler(),
+            httpService,
+            jsonMapper,
+            InstantSource.fixed(Instant.parse("2026-01-01T00:00:00Z"))
+    );
 
     @Test
     public void getData_noResponse_noData() {

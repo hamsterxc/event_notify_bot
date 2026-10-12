@@ -5,6 +5,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.provider.ProviderView;
 import com.lonebytesoft.hamster.eventnotifybot.model.provider.babylon.BabylonMovie;
 import com.lonebytesoft.hamster.eventnotifybot.service.HttpService;
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.time.scheduler.Scheduler;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Element;
@@ -48,20 +49,23 @@ public class BabylonProvider implements Provider {
 
     private static final TypeReference<List<BabylonMovie>> DATA_TYPE = new TypeReference<>(){};
 
-    private static final ZoneId DATETIME_ZONE = ZoneId.of("Europe/Berlin");
-    private static final DateTimeFormatter DATETIME_FORMAT_INPUT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(DATETIME_ZONE);
+    public static final ZoneId TIMEZONE = ZoneId.of("Europe/Berlin");
+    private static final DateTimeFormatter DATETIME_FORMAT_INPUT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(TIMEZONE);
 
     private static final String RESOURCE_FOLDER = "message/provider/babylon";
 
+    private final Scheduler updatesScheduler;
     private final HttpService httpService;
     private final JsonMapper jsonMapper;
     private final InstantSource instantSource;
 
     public BabylonProvider(
+            final Scheduler updatesScheduler,
             final HttpService httpService,
             final JsonMapper jsonMapper,
             final InstantSource instantSource
     ) {
+        this.updatesScheduler = updatesScheduler;
         this.httpService = httpService;
         this.jsonMapper = jsonMapper;
         this.instantSource = instantSource;
@@ -70,6 +74,11 @@ public class BabylonProvider implements Provider {
     @Override
     public String name() {
         return "babylon";
+    }
+
+    @Override
+    public Instant getNextUpdateTime() {
+        return updatesScheduler.getNext(instantSource.instant());
     }
 
     @Override
@@ -413,7 +422,7 @@ public class BabylonProvider implements Provider {
         private static final String TAGS_PLACEHOLDER = "%TAGS%";
 
         private static final String DATETIME_UNKNOWN_VIEW = ResourceUtils.read(RESOURCE_FOLDER + "/datetime_unknown.html");
-        private static final DateTimeFormatter DATETIME_FORMAT_VIEW = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy, HH:mm").withZone(DATETIME_ZONE);
+        private static final DateTimeFormatter DATETIME_FORMAT_VIEW = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy, HH:mm").withZone(TIMEZONE);
 
         private static final int MIN_DESCRIPTION_LENGTH = 10;
         private static final String ELLIPSIS = "...";

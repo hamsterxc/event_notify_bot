@@ -3,6 +3,7 @@ package com.lonebytesoft.hamster.eventnotifybot.test.mock;
 import com.lonebytesoft.hamster.eventnotifybot.model.provider.ProviderView;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 
+import java.time.Instant;
 import java.util.Optional;
 
 public record ProviderMock(
@@ -15,6 +16,11 @@ public record ProviderMock(
     @Override
     public Optional<String> getData() {
         return Optional.of(data);
+    }
+
+    @Override
+    public Instant getNextUpdateTime() {
+        return Instant.now();
     }
 
     @Override

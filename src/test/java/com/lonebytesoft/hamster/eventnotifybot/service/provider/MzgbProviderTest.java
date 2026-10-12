@@ -1,6 +1,7 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.provider;
 
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.time.scheduler.DisabledScheduler;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.HttpServiceMock;
 import org.junit.jupiter.api.Test;
 import tools.jackson.core.type.TypeReference;
@@ -22,7 +23,11 @@ public class MzgbProviderTest {
 
     private final HttpServiceMock httpService = new HttpServiceMock();
     private final JsonMapper jsonMapper = new JsonMapper();
-    private final Provider provider = new MzgbProvider(httpService, jsonMapper);
+    private final Provider provider = new MzgbProvider(
+            new DisabledScheduler(),
+            httpService,
+            jsonMapper
+    );
 
     @Test
     public void getData_initialNoResponse_noData() {

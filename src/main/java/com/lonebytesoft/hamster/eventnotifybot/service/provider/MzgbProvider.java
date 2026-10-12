@@ -5,6 +5,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.provider.mzgb.MzgbGame;
 import com.lonebytesoft.hamster.eventnotifybot.model.provider.mzgb.MzgbGameCategoryDescription;
 import com.lonebytesoft.hamster.eventnotifybot.model.provider.mzgb.MzgbGameData;
 import com.lonebytesoft.hamster.eventnotifybot.service.HttpService;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.time.scheduler.Scheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.core.JacksonException;
@@ -16,6 +17,7 @@ import java.net.URLDecoder;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -33,13 +35,16 @@ public class MzgbProvider implements Provider {
     private static final String CATEGORY_DESCRIPTIONS_RESOURCE = "mzgb-descriptions.json";
     private static final String URL = "https://ber.mzgb.net";
 
+    private final Scheduler updatesScheduler;
     private final HttpService httpService;
     private final JsonMapper jsonMapper;
 
     public MzgbProvider(
+            final Scheduler updatesScheduler,
             final HttpService httpService,
             final JsonMapper jsonMapper
     ) {
+        this.updatesScheduler = updatesScheduler;
         this.httpService = httpService;
         this.jsonMapper = jsonMapper;
     }
@@ -47,6 +52,11 @@ public class MzgbProvider implements Provider {
     @Override
     public String name() {
         return "mzgb";
+    }
+
+    @Override
+    public Instant getNextUpdateTime() {
+        return updatesScheduler.getNext(Instant.now());
     }
 
     @Override
