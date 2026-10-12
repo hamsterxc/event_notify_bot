@@ -9,6 +9,7 @@ import java.util.Optional;
 public record ProviderMock(
         String name,
         String data,
+        Instant nextUpdate,
         String imageUrl,
         String view
 ) implements Provider {
@@ -20,7 +21,7 @@ public record ProviderMock(
 
     @Override
     public Instant getNextUpdateTime() {
-        return Instant.now();
+        return nextUpdate;
     }
 
     @Override

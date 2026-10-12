@@ -71,7 +71,7 @@ public class ApplicationContext {
                         instantSource
                 )
         );
-        this.commandParsingService = new CommandParsingService(providers);
+        this.commandParsingService = new CommandParsingService(providers, instantSource);
     }
 
     public void initialize() {

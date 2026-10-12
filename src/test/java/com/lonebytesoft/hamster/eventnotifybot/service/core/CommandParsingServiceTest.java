@@ -21,8 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CommandParsingServiceTest {
 
-    private final Provider provider = new ProviderMock("provider", null, null, null);
-    private final CommandParsingService commandParsingService = new CommandParsingService(List.of(provider));
+    private final Provider provider = new ProviderMock("provider", null, null, null, null);
+    private final CommandParsingService commandParsingService = new CommandParsingService(List.of(provider), null);
 
     @Test
     public void parseMessage_emptyMessage_ignored() {
@@ -448,7 +448,8 @@ public class CommandParsingServiceTest {
         assertEquals(
                 Optional.of(new ShowCommand(
                         2L,
-                        provider
+                        provider,
+                        null
                 )),
                 commandParsingService.parseCommand(new Command(
                         null,

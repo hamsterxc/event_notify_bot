@@ -33,7 +33,7 @@ public class EventNotifyBotJobHandlerTest {
     private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, WRITE_COST_LIMIT);
     private final TelegramApiMock telegramApi = new TelegramApiMock();
     private final TelegramService telegramService = new TelegramService(telegramApi);
-    private final CommandParsingService commandParsingService = new CommandParsingService(List.of());
+    private final CommandParsingService commandParsingService = new CommandParsingService(List.of(), null);
     private final EventNotifyBotJobHandler handler = new EventNotifyBotJobHandler(new ApplicationContextMock(
             storageService,
             telegramService,

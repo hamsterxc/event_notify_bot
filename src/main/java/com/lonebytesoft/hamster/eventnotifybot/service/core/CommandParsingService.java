@@ -14,6 +14,7 @@ import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.InstantSource;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -36,13 +37,16 @@ public class CommandParsingService {
     private static final Collection<CommandType> UNKNOWN_COMMANDS = EnumSet.of(CommandType.INVALID, CommandType.UNKNOWN);
 
     private final Map<String, Provider> providers;
+    private final InstantSource instantSource;
 
     public CommandParsingService(
-            final Collection<Provider> providers
+            final Collection<Provider> providers,
+            final InstantSource instantSource
     ) {
         this.providers = providers
                 .stream()
                 .collect(Collectors.toMap(Provider::name, Function.identity()));
+        this.instantSource = instantSource;
     }
 
     public Optional<Command> parseMessage(final Message message) {
@@ -151,7 +155,7 @@ public class CommandParsingService {
             if (provider == null) {
                 return new InvalidCommand(chatId, "Unknown provider " + command.parameters().getFirst());
             } else {
-                return new ShowCommand(chatId, provider);
+                return new ShowCommand(chatId, provider, instantSource);
             }
         } else {
             return new InvalidCommand(chatId, "Exactly 1 parameter expected for command " + command.command());
