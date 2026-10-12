@@ -11,8 +11,8 @@ import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.CommandP
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SettingsProperties;
 import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
-import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.DynamoDbServiceMock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -29,9 +29,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class StorageServiceTest {
 
-    private final DynamoDbService dynamoDbService = new DynamoDbServiceMock();
+    private final DynamoDbServiceMock dynamoDbService = new DynamoDbServiceMock();
     private final JsonMapper jsonMapper = new JsonMapper();
     private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, 20);
+
+    @BeforeEach
+    public void beforeEach() {
+        dynamoDbService.reset();
+    }
 
     @Test
     public void settings() {

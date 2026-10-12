@@ -3,6 +3,7 @@ package com.lonebytesoft.hamster.eventnotifybot.service.provider;
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.time.scheduler.DisabledScheduler;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.HttpServiceMock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
@@ -28,6 +29,11 @@ public class MzgbProviderTest {
             httpService,
             jsonMapper
     );
+
+    @BeforeEach
+    public void beforeEach() {
+        httpService.reset();
+    }
 
     @Test
     public void getData_initialNoResponse_noData() {

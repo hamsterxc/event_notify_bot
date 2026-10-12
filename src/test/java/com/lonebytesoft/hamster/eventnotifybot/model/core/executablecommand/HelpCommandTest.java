@@ -2,6 +2,7 @@ package com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand;
 
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.TelegramApiMock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
@@ -14,6 +15,11 @@ public class HelpCommandTest {
 
     private final TelegramApiMock telegramApi = new TelegramApiMock();
     private final TelegramService telegramService = new TelegramService(telegramApi);
+
+    @BeforeEach
+    public void beforeEach() {
+        telegramApi.reset();
+    }
 
     @Test
     public void execute() {

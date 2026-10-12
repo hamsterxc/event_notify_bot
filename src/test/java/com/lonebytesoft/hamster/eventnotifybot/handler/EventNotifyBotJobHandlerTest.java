@@ -10,11 +10,11 @@ import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Update;
 import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.CommandParsingService;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
-import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.ApplicationContextMock;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.DynamoDbServiceMock;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.TelegramApiMock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -28,7 +28,7 @@ public class EventNotifyBotJobHandlerTest {
 
     private static final int WRITE_COST_LIMIT = 5;
 
-    private final DynamoDbService dynamoDbService = new DynamoDbServiceMock();
+    private final DynamoDbServiceMock dynamoDbService = new DynamoDbServiceMock();
     private final JsonMapper jsonMapper = new JsonMapper();
     private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, WRITE_COST_LIMIT);
     private final TelegramApiMock telegramApi = new TelegramApiMock();
@@ -40,6 +40,12 @@ public class EventNotifyBotJobHandlerTest {
             commandParsingService,
             WRITE_COST_LIMIT
     ));
+
+    @BeforeEach
+    public void beforeEach() {
+        dynamoDbService.reset();
+        telegramApi.reset();
+    }
 
     /*
     Given: no commands in storage, no Telegram updates.

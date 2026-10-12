@@ -5,11 +5,11 @@ import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWr
 import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
-import com.lonebytesoft.hamster.eventnotifybot.service.storage.dynamodb.DynamoDbService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.DynamoDbServiceMock;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.ProviderMock;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.TelegramApiMock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -23,12 +23,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ShowCommandTest {
 
-    private final DynamoDbService dynamoDbService = new DynamoDbServiceMock();
+    private final DynamoDbServiceMock dynamoDbService = new DynamoDbServiceMock();
     private final JsonMapper jsonMapper = new JsonMapper();
     private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, 5);
     private final TelegramApiMock telegramApi = new TelegramApiMock();
     private final TelegramService telegramService = new TelegramService(telegramApi);
     private final Provider provider = new ProviderMock("mock", "data", "image-url", "view");
+
+    @BeforeEach
+    public void beforeEach() {
+        dynamoDbService.reset();
+        telegramApi.reset();
+    }
 
     @Test
     public void execute_noProviderStateExists() {

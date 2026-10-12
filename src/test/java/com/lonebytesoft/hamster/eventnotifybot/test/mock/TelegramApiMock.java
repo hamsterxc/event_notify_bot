@@ -19,6 +19,11 @@ public class TelegramApiMock extends TelegramApi {
         super(null, null, null);
     }
 
+    public void reset() {
+        updates = null;
+        sentMessages.clear();
+    }
+
     @Override
     public Optional<User> getMe() {
         return Optional.empty();

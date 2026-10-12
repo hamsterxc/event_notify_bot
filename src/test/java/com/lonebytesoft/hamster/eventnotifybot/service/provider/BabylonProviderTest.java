@@ -5,6 +5,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.provider.babylon.BabylonMov
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.time.scheduler.DisabledScheduler;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.HttpServiceMock;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
@@ -33,6 +34,11 @@ public class BabylonProviderTest {
             jsonMapper,
             InstantSource.fixed(Instant.parse("2026-01-01T00:00:00Z"))
     );
+
+    @BeforeEach
+    public void beforeEach() {
+        httpService.reset();
+    }
 
     @Test
     public void getData_noResponse_noData() {

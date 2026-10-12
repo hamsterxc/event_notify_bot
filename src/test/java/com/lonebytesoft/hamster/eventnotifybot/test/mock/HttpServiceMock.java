@@ -23,6 +23,10 @@ public class HttpServiceMock extends HttpService {
         super(Duration.ofSeconds(1));
     }
 
+    public void reset() {
+        responseMocks.clear();
+    }
+
     @Override
     public Optional<HttpResponse<String>> fetch(HttpRequest request) {
         final String key = MOCK_KEY.formatted(request.method(), request.uri());

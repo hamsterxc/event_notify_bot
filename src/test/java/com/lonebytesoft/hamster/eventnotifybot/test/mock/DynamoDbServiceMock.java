@@ -21,6 +21,10 @@ public class DynamoDbServiceMock extends DynamoDbService {
         super(null, null);
     }
 
+    public void reset() {
+        storage.clear();
+    }
+
     @Override
     public DynamoDbReadResponse read() {
         return new DynamoDbReadResponse(
