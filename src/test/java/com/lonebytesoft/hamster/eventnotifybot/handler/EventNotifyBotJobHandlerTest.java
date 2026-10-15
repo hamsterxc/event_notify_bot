@@ -4,23 +4,27 @@ import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRe
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWriteRequest;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.CommandProperties;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SettingsProperties;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SubscriptionProperties;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Chat;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Update;
-import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.CommandParsingService;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.ApplicationContextMock;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.DynamoDbServiceMock;
+import com.lonebytesoft.hamster.eventnotifybot.test.mock.ProviderMock;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.TelegramApiMock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.InstantSource;
 import java.util.List;
 
+import static com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils.compress;
 import static com.lonebytesoft.hamster.eventnotifybot.test.Assertions.assertDynamoDbRecordsEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -38,6 +42,11 @@ public class EventNotifyBotJobHandlerTest {
             storageService,
             telegramService,
             commandParsingService,
+            InstantSource.fixed(Instant.parse("2026-01-01T12:00:00Z")),
+            List.of(
+                    new ProviderMock("mock-first", "data-first", Instant.parse("2026-01-01T18:00:00Z"), "image-url-first", "view-first"),
+                    new ProviderMock("mock-second", "data-second", Instant.parse("2026-01-01T20:00:00Z"), "image-url-second", "view-second")
+            ),
             WRITE_COST_LIMIT
     ));
 
@@ -703,8 +712,291 @@ public class EventNotifyBotJobHandlerTest {
         ), telegramApi.getSentMessages());
     }
 
+    /*
+    Given: 2 commands in storage, no Telegram updates, stale provider state with subscriptions.
+    Expected:
+    - commands processed,
+    - provider state not updated.
+     */
+    @Test
+    public void run_fewCommandsNoMessagesStaleProviderStateWithSubscriptions_commandsExecutedNoProviderStateUpdated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "command", "11", 102L, serialize(new CommandProperties("unknown", List.of("first"))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "command", "12", 101L, serialize(new CommandProperties("unknown", List.of("second"))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("3", "provider_state", "mock-first", Instant.parse("2026-01-01T11:00:00Z").getEpochSecond(), serialize(List.of()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("4", "subscription", "13", 103L, serialize(new SubscriptionProperties("5")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("5", "subscription_cache", "mock-first", 104L, serialize(List.of())))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(null))),
+                new DynamoDbRecord("3", "provider_state", "mock-first", Instant.parse("2026-01-01T11:00:00Z").getEpochSecond(), serialize(List.of())),
+                new DynamoDbRecord("4", "subscription", "13", 103L, serialize(new SubscriptionProperties("5"))),
+                new DynamoDbRecord("5", "subscription_cache", "mock-first", 104L, serialize(List.of()))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(
+                new TelegramApiMock.SentMessage(12L, null, "Unrecognized command: <b>second</b>"),
+                new TelegramApiMock.SentMessage(11L, null, "Unrecognized command: <b>first</b>")
+        ), telegramApi.getSentMessages());
+    }
+
+    /*
+    Given: no commands in storage, 2 Telegram updates, stale provider state with subscriptions.
+    Expected:
+    - messages processed,
+    - provider state not updated.
+     */
+    @Test
+    public void run_noCommandsFewMessagesStaleProviderStateWithSubscriptions_messagesProcessedNoProviderStateUpdated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("3", "provider_state", "mock-first", Instant.parse("2026-01-01T11:00:00Z").getEpochSecond(), serialize(List.of()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("4", "subscription", "13", 103L, serialize(new SubscriptionProperties("5")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("5", "subscription_cache", "mock-first", 104L, serialize(List.of())))
+        ));
+        telegramApi.setUpdates(List.of(
+                new Update(1L, new Message(11L, 101L, new Chat(1002L, "private"), "/second unknown")),
+                new Update(2L, new Message(12L, 102L, new Chat(1001L, "private"), "/first unknown"))
+        ));
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(2L))),
+                new DynamoDbRecord("3", "provider_state", "mock-first", Instant.parse("2026-01-01T11:00:00Z").getEpochSecond(), serialize(List.of())),
+                new DynamoDbRecord("4", "subscription", "13", 103L, serialize(new SubscriptionProperties("5"))),
+                new DynamoDbRecord("5", "subscription_cache", "mock-first", 104L, serialize(List.of()))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(
+                new TelegramApiMock.SentMessage(1002L, null, "Unrecognized command: <b>second</b>"),
+                new TelegramApiMock.SentMessage(1001L, null, "Unrecognized command: <b>first</b>")
+        ), telegramApi.getSentMessages());
+    }
+
+    /*
+    Given: no commands in storage, settings exist, no Telegram updates, actual provider state with subscriptions.
+    Expected:
+    - nothing is updated.
+     */
+    @Test
+    public void run_noCommandsNoMessagesSettingsExistActualProviderStateWithSubscriptions_nothingUpdated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T13:00:00Z").getEpochSecond(), serialize(List.of()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("3", "subscription", "11", 102L, serialize(new SubscriptionProperties("4")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("4", "subscription_cache", "mock-first", 103L, serialize(List.of())))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
+                new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T13:00:00Z").getEpochSecond(), serialize(List.of())),
+                new DynamoDbRecord("3", "subscription", "11", 102L, serialize(new SubscriptionProperties("4"))),
+                new DynamoDbRecord("4", "subscription_cache", "mock-first", 103L, serialize(List.of()))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(), telegramApi.getSentMessages());
+    }
+
+    /*
+    Given: no commands in storage, settings exist, no Telegram updates, actual provider state without subscriptions.
+    Expected:
+    - nothing is updated.
+     */
+    @Test
+    public void run_noCommandsNoMessagesSettingsExistActualProviderStateWithoutSubscriptions_nothingUpdated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T13:00:00Z").getEpochSecond(), serialize(List.of())))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
+                new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T13:00:00Z").getEpochSecond(), serialize(List.of()))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(), telegramApi.getSentMessages());
+    }
+
+    /*
+    Given: no commands in storage, settings exist, no Telegram updates, stale provider state with subscriptions.
+    Expected:
+    - provider state is updated.
+     */
+    @Test
+    public void run_noCommandsNoMessagesSettingsExistStaleProviderStateWithSubscriptions_providerStateUpdated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T11:00:00Z").getEpochSecond(), serialize(List.of()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("3", "subscription", "11", 102L, serialize(new SubscriptionProperties("4")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("4", "subscription_cache", "mock-first", 103L, serialize(List.of())))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
+                new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T18:00:00Z").getEpochSecond(), compress("data-first".getBytes())),
+                new DynamoDbRecord("3", "subscription", "11", 102L, serialize(new SubscriptionProperties("4"))),
+                new DynamoDbRecord("4", "subscription_cache", "mock-first", 103L, serialize(List.of()))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(), telegramApi.getSentMessages());
+    }
+
+    /*
+    Given: no commands in storage, settings exist, no Telegram updates, stale provider state without subscriptions.
+    Expected:
+    - nothing is updated.
+     */
+    @Test
+    public void run_noCommandsNoMessagesSettingsExistStaleProviderStateWithoutSubscriptions_nothingUpdated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T11:00:00Z").getEpochSecond(), serialize(List.of())))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
+                new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T11:00:00Z").getEpochSecond(), serialize(List.of()))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(), telegramApi.getSentMessages());
+    }
+
+    /*
+    Given: no commands in storage, settings exist, no Telegram updates, non-updatable provider state with subscriptions.
+    Expected:
+    - nothing is updated.
+     */
+    @Test
+    public void run_noCommandsNoMessagesSettingsExistNonUpdatableProviderStateWithSubscriptions_nothingUpdated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "provider_state", "mock-first", null, serialize(List.of()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("3", "subscription", "11", 102L, serialize(new SubscriptionProperties("4")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("4", "subscription_cache", "mock-first", 103L, serialize(List.of())))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
+                new DynamoDbRecord("2", "provider_state", "mock-first", null, serialize(List.of())),
+                new DynamoDbRecord("3", "subscription", "11", 102L, serialize(new SubscriptionProperties("4"))),
+                new DynamoDbRecord("4", "subscription_cache", "mock-first", 103L, serialize(List.of()))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(), telegramApi.getSentMessages());
+    }
+
+    /*
+    Given: no commands in storage, settings exist, no Telegram updates, no provider state, provider with subscriptions.
+    Expected:
+    - provider state is created.
+     */
+    @Test
+    public void run_noCommandsNoMessagesSettingsExistNonExistentProviderStateWithSubscriptions_providerStateCreated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "subscription", "11", 102L, serialize(new SubscriptionProperties("3")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("3", "subscription_cache", "mock-first", 103L, serialize(List.of())))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
+                new DynamoDbRecord(null, "provider_state", "mock-first", Instant.parse("2026-01-01T18:00:00Z").getEpochSecond(), compress("data-first".getBytes())),
+                new DynamoDbRecord("2", "subscription", "11", 102L, serialize(new SubscriptionProperties("3"))),
+                new DynamoDbRecord("3", "subscription_cache", "mock-first", 103L, serialize(List.of()))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(), telegramApi.getSentMessages());
+    }
+
+    /*
+    Given: no commands in storage, settings exist, no Telegram updates, two stale provider states with subscriptions.
+    Expected:
+    - the earliest provider state is updated.
+     */
+    @Test
+    public void run_noCommandsNoMessagesSettingsExistTwoStaleProviderStatesWithSubscriptions_earliestProviderStateUpdated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T11:00:00Z").getEpochSecond(), serialize(List.of()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("3", "subscription", "11", 102L, serialize(new SubscriptionProperties("4")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("4", "subscription_cache", "mock-first", 103L, serialize(List.of()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("5", "provider_state", "mock-second", Instant.parse("2026-01-01T10:00:00Z").getEpochSecond(), serialize(List.of()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("6", "subscription", "12", 104L, serialize(new SubscriptionProperties("7")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("7", "subscription_cache", "mock-second", 105L, serialize(List.of())))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
+                new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T11:00:00Z").getEpochSecond(), serialize(List.of())),
+                new DynamoDbRecord("3", "subscription", "11", 102L, serialize(new SubscriptionProperties("4"))),
+                new DynamoDbRecord("4", "subscription_cache", "mock-first", 103L, serialize(List.of())),
+                new DynamoDbRecord("5", "provider_state", "mock-second", Instant.parse("2026-01-01T20:00:00Z").getEpochSecond(), compress("data-second".getBytes())),
+                new DynamoDbRecord("6", "subscription", "12", 104L, serialize(new SubscriptionProperties("7"))),
+                new DynamoDbRecord("7", "subscription_cache", "mock-second", 105L, serialize(List.of()))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(), telegramApi.getSentMessages());
+    }
+
+    /*
+    Given: no commands in storage, settings exist, no Telegram updates, two stale provider states with subscriptions.
+    Expected:
+    - the earliest provider state is updated.
+     */
+    @Test
+    public void run_noCommandsNoMessagesSettingsExistOneStaleOneNonExistentProviderStatesWithSubscriptions_missingProviderStateCreated() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L)))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T11:00:00Z").getEpochSecond(), serialize(List.of()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("3", "subscription", "11", 102L, serialize(new SubscriptionProperties("4")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("4", "subscription_cache", "mock-first", 103L, serialize(List.of()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("5", "subscription", "12", 104L, serialize(new SubscriptionProperties("6")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("6", "subscription_cache", "mock-second", 105L, serialize(List.of())))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
+                new DynamoDbRecord("2", "provider_state", "mock-first", Instant.parse("2026-01-01T11:00:00Z").getEpochSecond(), serialize(List.of())),
+                new DynamoDbRecord("3", "subscription", "11", 102L, serialize(new SubscriptionProperties("4"))),
+                new DynamoDbRecord("4", "subscription_cache", "mock-first", 103L, serialize(List.of())),
+                new DynamoDbRecord(null, "provider_state", "mock-second", Instant.parse("2026-01-01T20:00:00Z").getEpochSecond(), compress("data-second".getBytes())),
+                new DynamoDbRecord("5", "subscription", "12", 104L, serialize(new SubscriptionProperties("6"))),
+                new DynamoDbRecord("6", "subscription_cache", "mock-second", 105L, serialize(List.of()))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(), telegramApi.getSentMessages());
+    }
+
     private byte[] serialize(Object value) {
-        return ZipUtils.compress(jsonMapper.writeValueAsBytes(value));
+        return compress(jsonMapper.writeValueAsBytes(value));
     }
 
 }

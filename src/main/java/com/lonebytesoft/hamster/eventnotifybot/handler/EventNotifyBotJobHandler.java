@@ -1,23 +1,31 @@
 package com.lonebytesoft.hamster.eventnotifybot.handler;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.ProviderState;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.Subscription;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.ExecutableCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Update;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.CommandParsingService;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.InstantSource;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class EventNotifyBotJobHandler implements JobHandler {
 
@@ -27,6 +35,8 @@ public class EventNotifyBotJobHandler implements JobHandler {
     private final TelegramService telegramService;
     private final CommandParsingService commandParsingService;
     private final int writeCostLimit;
+    private final InstantSource instantSource;
+    private final Collection<Provider> providers;
 
     public EventNotifyBotJobHandler(
             final ApplicationContext applicationContext
@@ -35,6 +45,8 @@ public class EventNotifyBotJobHandler implements JobHandler {
         this.telegramService = applicationContext.getTelegramService();
         this.commandParsingService = applicationContext.getCommandParsingService();
         this.writeCostLimit = applicationContext.getWriteCostLimit();
+        this.instantSource = applicationContext.getInstantSource();
+        this.providers = applicationContext.getProviders();
     }
 
     @Override
@@ -44,6 +56,36 @@ public class EventNotifyBotJobHandler implements JobHandler {
 
         budget -= processCommands(writeCostLimit, telegramChatsTracker);
         log.debug("Processed commands, budget remaining: {}/{}", budget, writeCostLimit);
+        if (budget == 0) {
+            return;
+        }
+
+        final Optional<Provider> updatableProvider = getUpdatableProvider();
+        if (updatableProvider.isPresent()) {
+            final Provider provider = updatableProvider.get();
+            final String providerName = provider.name();
+            // updating provider state only with full budget
+            if (budget == writeCostLimit) {
+                provider.getData()
+                        .ifPresent(data -> {
+                            final Instant nextUpdateTime = provider.getNextUpdateTime();
+                            storageService.setProviderState(new ProviderState(
+                                    providerName,
+                                    Optional.ofNullable(nextUpdateTime).map(Instant::getEpochSecond).orElse(null),
+                                    data
+                            ));
+                            log.info("Updated '{}' provider state, next update at {}", providerName, nextUpdateTime);
+                        });
+                budget -= storageService.flush();
+                log.debug("Updated '{}' provider state, budget remaining: {}/{}", providerName, budget, writeCostLimit);
+                if (budget == 0) {
+                    return;
+                }
+            } else {
+                log.debug("Updating '{}' provider state on the next run, when full budget is available", providerName);
+                return;
+            }
+        }
     }
 
     /**
@@ -273,6 +315,49 @@ public class EventNotifyBotJobHandler implements JobHandler {
             }
         }
         return remainingBudget;
+    }
+
+    /**
+     * Return the provider that:
+     * - has active subscriptions attached,
+     * - has no state or has its state already due to being updated,
+     * - has the earliest previous update time.
+     */
+    private Optional<Provider> getUpdatableProvider() {
+        final Collection<String> activeProviders = storageService.getSubscriptions()
+                .stream()
+                .map(Subscription::provider)
+                .collect(Collectors.toSet());
+        final Map<String, Optional<Long>> providerTimes = storageService.getProviderStates()
+                .stream()
+                .collect(Collectors.toMap(
+                        ProviderState::provider,
+                        providerState -> Optional.ofNullable(providerState.time())
+                ));
+        final long now = instantSource.instant().getEpochSecond();
+        return providers
+                .stream()
+                .filter(provider -> activeProviders.contains(provider.name()))
+                .map(provider -> {
+                    final Optional<Long> providerTime = providerTimes.get(provider.name());
+                    if ((providerTime == null) // no state exists yet
+                            || providerTime.map(time -> time < now).orElse(false) // or the state is stale (null never expires)
+                    ) {
+                        return Map.entry(
+                                provider,
+                                Optional.ofNullable(providerTime)
+                                        .flatMap(Function.identity())
+                        );
+                    } else {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .min(Comparator.comparing(
+                        providerWithTime -> providerWithTime.getValue().orElse(null),
+                        Comparator.nullsFirst(Comparator.naturalOrder())
+                ))
+                .map(Map.Entry::getKey);
     }
 
     private record ParsedCommand(

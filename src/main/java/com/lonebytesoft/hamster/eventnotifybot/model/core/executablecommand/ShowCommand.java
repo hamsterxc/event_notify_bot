@@ -46,13 +46,14 @@ public record ShowCommand(
                 .orElseGet(() -> {
                     provider.getData()
                             .ifPresent(data -> {
+                                final String providerName = provider.name();
                                 final Instant nextUpdateTime = provider.getNextUpdateTime();
-                                log.info("Updating '{}' provider state, next update at {}", provider.name(), nextUpdateTime);
                                 storageService.setProviderState(new ProviderState(
-                                        provider.name(),
+                                        providerName,
                                         Optional.ofNullable(nextUpdateTime).map(Instant::getEpochSecond).orElse(null),
                                         data
                                 ));
+                                log.info("Updated '{}' provider state, next update at {}", providerName, nextUpdateTime);
                             });
                     return false;
                 });

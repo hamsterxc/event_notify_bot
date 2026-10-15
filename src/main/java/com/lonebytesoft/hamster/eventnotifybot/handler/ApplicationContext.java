@@ -32,6 +32,8 @@ public class ApplicationContext {
     private final StorageService storageService;
     private final TelegramService telegramService;
     private final CommandParsingService commandParsingService;
+    private final InstantSource instantSource;
+    private final Collection<Provider> providers;
 
     public ApplicationContext() {
         final JsonMapper jsonMapper = JsonMapper.builder()
@@ -56,8 +58,8 @@ public class ApplicationContext {
         );
         this.telegramService = new TelegramService(telegramApi);
 
-        final InstantSource instantSource = InstantSource.system();
-        final Collection<Provider> providers = List.of(
+        this.instantSource = InstantSource.system();
+        this.providers = List.of(
                 new BabylonProvider(
                         // updating daily from 08:00 to 20:00, every 1.5-2.5 hours
                         new RandomRateScheduler(
@@ -89,6 +91,14 @@ public class ApplicationContext {
 
     public CommandParsingService getCommandParsingService() {
         return commandParsingService;
+    }
+
+    public InstantSource getInstantSource() {
+        return instantSource;
+    }
+
+    public Collection<Provider> getProviders() {
+        return providers;
     }
 
     public int getWriteCostLimit() {
