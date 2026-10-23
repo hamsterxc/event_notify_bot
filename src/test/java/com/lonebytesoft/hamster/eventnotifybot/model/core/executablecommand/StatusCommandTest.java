@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.InstantSource;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,7 +21,7 @@ public class StatusCommandTest {
 
     private final DynamoDbServiceMock dynamoDbService = new DynamoDbServiceMock();
     private final JsonMapper jsonMapper = new JsonMapper();
-    private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, 0);
+    private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, InstantSource.system(), 0);
     private final TelegramApiMock telegramApi = new TelegramApiMock();
     private final TelegramService telegramService = new TelegramService(telegramApi);
 

@@ -39,6 +39,7 @@ public class ApplicationContext {
         final JsonMapper jsonMapper = JsonMapper.builder()
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .build();
+        this.instantSource = InstantSource.system();
 
         final DynamoDbService dynamoDbService = new DynamoDbService(
                 DynamoDbClient.create(),
@@ -47,6 +48,7 @@ public class ApplicationContext {
         this.storageService = new StorageService(
                 dynamoDbService,
                 jsonMapper,
+                instantSource,
                 WRITE_COST_LIMIT
         );
 
@@ -58,7 +60,6 @@ public class ApplicationContext {
         );
         this.telegramService = new TelegramService(telegramApi);
 
-        this.instantSource = InstantSource.system();
         this.providers = List.of(
                 new BabylonProvider(
                         // updating daily from 08:00 to 20:00, every 1.5-2.5 hours

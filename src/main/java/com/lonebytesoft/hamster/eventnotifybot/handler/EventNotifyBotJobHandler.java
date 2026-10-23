@@ -5,6 +5,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.ProviderState;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Subscription;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.ExecutableCommand;
+import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.SubscriptionUpdateCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Update;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.CommandParsingService;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
@@ -56,13 +57,8 @@ public class EventNotifyBotJobHandler implements JobHandler {
 
         budget -= processCommands(writeCostLimit, telegramChatsTracker);
         log.debug("Processed commands, budget remaining: {}/{}", budget, writeCostLimit);
-        if (budget == 0) {
-            return;
-        }
 
-        final Optional<Provider> updatableProvider = getUpdatableProvider();
-        if (updatableProvider.isPresent()) {
-            final Provider provider = updatableProvider.get();
+        for (final Provider provider : getUpdatableProviders()) {
             final String providerName = provider.name();
             // updating provider state only with full budget
             if (budget == writeCostLimit) {
@@ -77,15 +73,15 @@ public class EventNotifyBotJobHandler implements JobHandler {
                             log.info("Updated '{}' provider state, next update at {}", providerName, nextUpdateTime);
                         });
                 budget -= storageService.flush();
-                log.debug("Updated '{}' provider state, budget remaining: {}/{}", providerName, budget, writeCostLimit);
-                if (budget == 0) {
-                    return;
-                }
             } else {
                 log.debug("Updating '{}' provider state on the next run, when full budget is available", providerName);
                 return;
             }
         }
+        log.debug("Updated provider states, budget remaining: {}/{}", budget, writeCostLimit);
+
+        budget -= sendSubscriptionUpdates(budget, telegramChatsTracker);
+        log.debug("Processed provider updates, budget remaining: {}/{}", budget, writeCostLimit);
     }
 
     /**
@@ -318,12 +314,12 @@ public class EventNotifyBotJobHandler implements JobHandler {
     }
 
     /**
-     * Return the provider that:
-     * - has active subscriptions attached,
-     * - has no state or has its state already due to being updated,
-     * - has the earliest previous update time.
+     * Return providers that:
+     * - have active subscriptions attached,
+     * - have no state or has its state already due to being updated.
+     * Sorted by the earliest previous update time.
      */
-    private Optional<Provider> getUpdatableProvider() {
+    private List<Provider> getUpdatableProviders() {
         final Collection<String> activeProviders = storageService.getSubscriptions()
                 .stream()
                 .map(Subscription::provider)
@@ -353,11 +349,55 @@ public class EventNotifyBotJobHandler implements JobHandler {
                     }
                 })
                 .filter(Objects::nonNull)
-                .min(Comparator.comparing(
+                .sorted(Comparator.comparing(
                         providerWithTime -> providerWithTime.getValue().orElse(null),
                         Comparator.nullsFirst(Comparator.naturalOrder())
                 ))
-                .map(Map.Entry::getKey);
+                .map(Map.Entry::getKey)
+                .toList();
+    }
+
+    private int sendSubscriptionUpdates(
+            final int budget,
+            final TelegramChatsTracker telegramChatsTracker
+    ) {
+        final Map<String, Provider> providers = this.providers
+                .stream()
+                .collect(Collectors.toMap(Provider::name, Function.identity()));
+        final Map<String, String> providerStates = storageService.getProviderStates()
+                .stream()
+                .collect(Collectors.toMap(ProviderState::provider, ProviderState::data));
+        process(
+                budget,
+                storageService.getSubscriptions()
+                        .stream()
+                        .filter(subscription -> providers.containsKey(subscription.provider()))
+                        .filter(subscription -> !Objects.equals(subscription.data(), providerStates.get(subscription.provider())))
+                        .sorted(Comparator.nullsLast(Comparator.comparing(Subscription::chatId))
+                                .thenComparing(Comparator.nullsLast(Comparator.comparing(Subscription::provider))))
+                        .toList(),
+                subscription -> {
+                    final Long chatId = subscription.chatId();
+                    if (chatId == null) {
+                        log.warn("Chat id missing in subscription: {}", subscription);
+                        return false;
+                    } else {
+                        return telegramChatsTracker.isAllowed(chatId);
+                    }
+                },
+                subscription -> new SubscriptionUpdateCommand(
+                        subscription.chatId(),
+                        providers.get(subscription.provider()),
+                        subscription.data(),
+                        providerStates.get(subscription.provider())
+                ),
+                command -> estimateCost(command, 0),
+                _ -> 0, // command is always available
+                _ -> 0, // do nothing if command is skipped
+                _ -> {}, // command always completes
+                _ -> {} // do nothing when command completes
+        );
+        return storageService.flush();
     }
 
     private record ParsedCommand(

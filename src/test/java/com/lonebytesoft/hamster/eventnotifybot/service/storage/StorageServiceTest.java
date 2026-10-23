@@ -9,6 +9,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRe
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWriteRequest;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.CommandProperties;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SettingsProperties;
+import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SubscriptionProperties;
 import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.DynamoDbServiceMock;
@@ -16,12 +17,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Instant;
+import java.time.InstantSource;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import static com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils.compress;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -31,7 +36,8 @@ public class StorageServiceTest {
 
     private final DynamoDbServiceMock dynamoDbService = new DynamoDbServiceMock();
     private final JsonMapper jsonMapper = new JsonMapper();
-    private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, 20);
+    private final InstantSource instantSource = InstantSource.fixed(Instant.parse("2026-01-01T12:00:00Z"));
+    private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, instantSource, 20);
 
     @BeforeEach
     public void beforeEach() {
@@ -190,7 +196,7 @@ public class StorageServiceTest {
                         "subscription_cache",
                         "provider-1",
                         subscriptionCacheRecord.time(),
-                        ZipUtils.compress("data-1".getBytes())
+                        compress("data-1".getBytes())
                 ),
                 subscriptionCacheRecord
         );
@@ -237,7 +243,7 @@ public class StorageServiceTest {
                         "subscription_cache",
                         "provider-1",
                         subscriptionCacheRecord.time(),
-                        ZipUtils.compress("data-1".getBytes())
+                        compress("data-1".getBytes())
                 ),
                 subscriptionCacheRecord
         );
@@ -301,7 +307,7 @@ public class StorageServiceTest {
                         "subscription_cache",
                         "provider-1",
                         subscriptionCacheRecord.time(),
-                        ZipUtils.compress("data-1".getBytes())
+                        compress("data-1".getBytes())
                 ),
                 subscriptionCacheRecord
         );
@@ -312,7 +318,7 @@ public class StorageServiceTest {
                         "subscription_cache",
                         "provider-1",
                         subscriptionCacheRecord.time(),
-                        ZipUtils.compress("data-2".getBytes())
+                        compress("data-2".getBytes())
                 ),
                 subscriptionCacheRecord
         );
@@ -380,7 +386,7 @@ public class StorageServiceTest {
                         "subscription_cache",
                         "provider-1",
                         subscriptionCacheRecord.time(),
-                        ZipUtils.compress("data-1".getBytes())
+                        compress("data-1".getBytes())
                 ),
                 subscriptionCacheRecord
         );
@@ -391,7 +397,7 @@ public class StorageServiceTest {
                         "subscription_cache",
                         "provider-1",
                         subscriptionCacheRecord.time(),
-                        ZipUtils.compress("data-2".getBytes())
+                        compress("data-2".getBytes())
                 ),
                 subscriptionCacheRecord
         );
@@ -402,7 +408,7 @@ public class StorageServiceTest {
                         "subscription_cache",
                         "provider-2",
                         subscriptionCacheRecord.time(),
-                        ZipUtils.compress("data-1".getBytes())
+                        compress("data-1".getBytes())
                 ),
                 subscriptionCacheRecord
         );
@@ -500,6 +506,69 @@ public class StorageServiceTest {
     }
 
     @Test
+    public void estimateWriteCost_subscriptionNoCacheEntry() {
+        final Subscription subscription = new Subscription(
+                1L,
+                "provider-1",
+                IntStream.range(0, 1000).mapToObj(String::valueOf).collect(Collectors.joining()) // 2890 symbols
+        );
+
+        storageService.fetch();
+
+        assertEquals(4, storageService.estimateWriteCost(subscription)); // 3 for cache + 1 for subscription itself
+    }
+
+    @Test
+    public void estimateWriteCost_subscriptionDifferentCacheEntry() {
+        final Subscription subscription = new Subscription(1L, "provider-1", "data-2");
+
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "subscription_cache", "provider-1", 101L, compress("data-1".getBytes())))
+        ));
+        storageService.fetch();
+
+        assertEquals(2, storageService.estimateWriteCost(subscription)); // 1 for cache + 1 for subscription itself
+    }
+
+    @Test
+    public void estimateWriteCost_subscriptionExistingCacheEntry() {
+        final Subscription subscription = new Subscription(1L, "provider-1", "data-1");
+
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "subscription_cache", "provider-1", 101L, compress("data-1".getBytes())))
+        ));
+        storageService.fetch();
+
+        assertEquals(1, storageService.estimateWriteCost(subscription)); // 1 for subscription itself
+    }
+
+    @Test
+    public void estimateWriteCost_existingSubscription() {
+        final Subscription subscription = new Subscription(1L, "provider-1", "data-1");
+
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "subscription_cache", "provider-1", 101L, compress("data-1".getBytes()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "subscription", "1", 102L, serialize(new SubscriptionProperties("1"))))
+        ));
+        storageService.fetch();
+
+        assertEquals(0, storageService.estimateWriteCost(subscription)); // nothing to write
+    }
+
+    @Test
+    public void estimateWriteCost_existingSubscriptionAnotherChat() {
+        final Subscription subscription = new Subscription(1L, "provider-1", "data-1");
+
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "subscription_cache", "provider-1", 101L, compress("data-1".getBytes()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "subscription", "2", 102L, serialize(new SubscriptionProperties("1"))))
+        ));
+        storageService.fetch();
+
+        assertEquals(1, storageService.estimateWriteCost(subscription)); // 1 for subscription itself
+    }
+
+    @Test
     public void unknown() {
         final Command command = new Command(null, 10002L, 102L, "test", List.of());
 
@@ -561,7 +630,7 @@ public class StorageServiceTest {
     }
 
     private byte[] serialize(Object value) {
-        return ZipUtils.compress(jsonMapper.writeValueAsBytes(value));
+        return compress(jsonMapper.writeValueAsBytes(value));
     }
 
     private static void assertDynamoDbRecordEquals(final DynamoDbRecord expected, final DynamoDbRecord actual) {

@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.InstantSource;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -38,8 +39,11 @@ public class StorageService {
 
     private static final int WRITE_COST_WARN_LIMIT_PERCENTAGE = 80;
 
+    private static final int BYTES_PER_WRITE_COST = 1000;
+
     private final DynamoDbService dynamoDbService;
     private final JsonMapper jsonMapper;
+    private final InstantSource instantSource;
     private final int writeCostWarnLimit;
 
     private SettingsShadow settings = new SettingsShadow(List.of(), null);
@@ -52,10 +56,12 @@ public class StorageService {
     public StorageService(
             final DynamoDbService dynamoDbService,
             final JsonMapper jsonMapper,
+            final InstantSource instantSource,
             final int writeCostLimit
     ) {
         this.dynamoDbService = dynamoDbService;
         this.jsonMapper = jsonMapper;
+        this.instantSource = instantSource;
         this.writeCostWarnLimit = (int) Math.ceil((double) writeCostLimit * WRITE_COST_WARN_LIMIT_PERCENTAGE / 100);
     }
 
@@ -258,11 +264,12 @@ public class StorageService {
             return false;
         }
 
-        final String cacheRef = obtainSubscriptionCacheRef(subscription.provider(), subscription.data());
+        final String cacheRef = getSubscriptionCacheRef(subscription.provider(), subscription.data())
+                .orElseGet(() -> createSubscriptionCacheRef(subscription.provider(), subscription.data()));
         final SubscriptionRecord subscriptionRecord = new SubscriptionRecord(
                 UUID.randomUUID().toString(),
                 subscription.chatId(),
-                System.currentTimeMillis(),
+                instantSource.instant().getEpochSecond(),
                 new SubscriptionProperties(cacheRef)
         );
         this.subscription.put(subscriptionRecord);
@@ -284,8 +291,9 @@ public class StorageService {
                 log.warn("Multiple subscriptions found: {}", subscription);
             }
 
-            final Long time = System.currentTimeMillis();
-            final String cacheRef = obtainSubscriptionCacheRef(subscription.provider(), subscription.data());
+            final Long time = instantSource.instant().getEpochSecond();
+            final String cacheRef = getSubscriptionCacheRef(subscription.provider(), subscription.data())
+                    .orElseGet(() -> createSubscriptionCacheRef(subscription.provider(), subscription.data()));
             subscriptionIds.forEach(id -> this.subscription.put(new SubscriptionRecord(
                     id,
                     subscription.chatId(),
@@ -320,13 +328,33 @@ public class StorageService {
         }
     }
 
+    public int estimateWriteCost(final Subscription subscription) {
+        return getSubscriptionCacheRef(subscription.provider(), subscription.data())
+                .map(cacheRef -> {
+                    final Collection<String> subscriptionIds = findSubscriptionIds(
+                            getSubscriptionCache(),
+                            subscription.chatId(),
+                            subscription.provider()
+                    );
+                    return this.subscription.getAll()
+                            .stream()
+                            .anyMatch(subscriptionRecord -> subscriptionIds.contains(subscriptionRecord.id())
+                                    && Objects.equals(cacheRef, subscriptionRecord.properties().cacheRef()))
+                            ? 0
+                            : 1;
+                })
+                .orElseGet(() -> 1 + // a subscription entry will be anyway either created or updated with the new cache ref
+                        (int) Math.ceil((double) subscription.data().length() / BYTES_PER_WRITE_COST) // the upper limit without any compression
+                );
+    }
+
     private Map<String, SubscriptionCacheRecord> getSubscriptionCache() {
         return this.subscriptionCache.getAll()
                 .stream()
                 .collect(Collectors.toMap(SubscriptionCacheRecord::id, Function.identity()));
     }
 
-    private String obtainSubscriptionCacheRef(
+    private Optional<String> getSubscriptionCacheRef(
             final String provider,
             final String data
     ) {
@@ -335,19 +363,23 @@ public class StorageService {
                 .filter(subscriptionCacheRecord -> Objects.equals(provider, subscriptionCacheRecord.provider())
                         && Objects.equals(data, subscriptionCacheRecord.data()))
                 .findFirst()
-                .map(SubscriptionCacheRecord::id)
-                .orElseGet(() -> {
-                    final String id = UUID.randomUUID().toString();
-                    final SubscriptionCacheRecord subscriptionCacheRecord = new SubscriptionCacheRecord(
-                            id,
-                            provider,
-                            System.currentTimeMillis(),
-                            data
-                    );
-                    this.subscriptionCache.put(subscriptionCacheRecord);
-                    log.debug("Creating a new subscription cache entry: {}", subscriptionCacheRecord);
-                    return id;
-                });
+                .map(SubscriptionCacheRecord::id);
+    }
+
+    private String createSubscriptionCacheRef(
+            final String provider,
+            final String data
+    ) {
+        final String id = UUID.randomUUID().toString();
+        final SubscriptionCacheRecord subscriptionCacheRecord = new SubscriptionCacheRecord(
+                id,
+                provider,
+                instantSource.instant().getEpochSecond(),
+                data
+        );
+        this.subscriptionCache.put(subscriptionCacheRecord);
+        log.debug("Creating a new subscription cache entry: {}", subscriptionCacheRecord);
+        return id;
     }
 
     private Collection<String> findSubscriptionIds(
@@ -365,7 +397,7 @@ public class StorageService {
                         .map(_ -> subscriptionRecord.id())
                         .orElse(null))
                 .filter(Objects::nonNull)
-                .toList();
+                .collect(Collectors.toSet());
     }
 
     private int cleanupUnknown(final int writeCostLimit) {
