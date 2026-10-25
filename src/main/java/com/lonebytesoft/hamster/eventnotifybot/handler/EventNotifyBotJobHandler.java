@@ -55,8 +55,11 @@ public class EventNotifyBotJobHandler implements JobHandler {
         int budget = writeCostLimit;
         final TelegramChatsTracker telegramChatsTracker = new TelegramChatsTracker();
 
-        budget -= processCommands(writeCostLimit, telegramChatsTracker);
-        log.debug("Processed commands, budget remaining: {}/{}", budget, writeCostLimit);
+        budget -= processStoredCommands(budget, telegramChatsTracker);
+        log.debug("Processed stored commands, budget remaining: {}/{}", budget, writeCostLimit);
+
+        budget -= processTelegramCommands(budget, telegramChatsTracker);
+        log.debug("Processed Telegram commands, budget remaining: {}/{}", budget, writeCostLimit);
 
         for (final Provider provider : getUpdatableProviders()) {
             final String providerName = provider.name();
@@ -85,19 +88,17 @@ public class EventNotifyBotJobHandler implements JobHandler {
     }
 
     /**
-     * Process both stored and Telegram commands, keeping track of write budget and Telegram chats accessed.
+     * Process stored commands, keeping track of write budget and Telegram chats accessed.
      * @param budget write cost budget
      * @param telegramChatsTracker the tracker of Telegram chats accessed
      * @return write cost actually consumed
      */
-    private int processCommands(
+    private int processStoredCommands(
             final int budget,
             final TelegramChatsTracker telegramChatsTracker
     ) {
-        int remainingBudget = budget;
-
-        remainingBudget = process(
-                remainingBudget,
+        process(
+                budget,
                 storageService.getCommands()
                         .stream()
                         .sorted(Comparator.comparing(Command::time))
@@ -114,19 +115,30 @@ public class EventNotifyBotJobHandler implements JobHandler {
                 _ -> {},
                 command -> storageService.removeCommand(command.id())
         );
-        log.debug("Processed stored commands, estimated budget remaining: {}/{}", remainingBudget, budget);
 
+        return storageService.flush();
+    }
+
+    /**
+     * Process Telegram commands, keeping track of write budget and Telegram chats accessed.
+     * @param budget write cost budget
+     * @param telegramChatsTracker the tracker of Telegram chats accessed
+     * @return write cost actually consumed
+     */
+    private int processTelegramCommands(
+            final int budget,
+            final TelegramChatsTracker telegramChatsTracker
+    ) {
         // to potentially save the updated settings
-        if (remainingBudget < 1) {
-            return storageService.flush();
-        } else {
-            remainingBudget -= 1;
+        if (budget < 1) {
+            return 0;
         }
 
         final Settings settings = storageService.getSettings();
         final TelegramUpdatesTracker telegramUpdatesTracker = new TelegramUpdatesTracker(settings.telegramLastUpdateId());
-        remainingBudget = process(
-                remainingBudget,
+
+        process(
+                budget - 1,
                 telegramService.getUpdates(telegramUpdatesTracker.getUpdateId())
                         .stream()
                         .sorted(Comparator.comparing(Update::id))
@@ -161,7 +173,6 @@ public class EventNotifyBotJobHandler implements JobHandler {
                     telegramUpdatesTracker.accept(command.update());
                 }
         );
-        log.debug("Processed Telegram commands, estimated budget remaining: {}/{}", remainingBudget, budget);
 
         storageService.setSettings(new Settings(
                 telegramUpdatesTracker.getUpdateId()
@@ -354,6 +365,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
         final Map<String, String> providerStates = storageService.getProviderStates()
                 .stream()
                 .collect(Collectors.toMap(ProviderState::provider, ProviderState::data));
+
         process(
                 budget,
                 storageService.getSubscriptions()
@@ -376,6 +388,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
                 _ -> {}, // command always completes
                 _ -> {} // do nothing when command completes
         );
+
         return storageService.flush();
     }
 
