@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 public record ShowCommand(
-        Long chatId,
+        long chatId,
         Provider provider,
         InstantSource instantSource
 ) implements ExecutableCommand {

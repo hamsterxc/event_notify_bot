@@ -131,34 +131,31 @@ public class CommandParsingService {
     }
 
     private static ExecutableCommand helpCommand(final Command command) {
-        final Long chatId = command.chatId();
         if (command.parameters().isEmpty()) {
-            return new HelpCommand(chatId);
+            return new HelpCommand(command.chatId());
         } else {
-            return new InvalidCommand(chatId, "No parameters expected for command " + command.command());
+            return new InvalidCommand(command.chatId(), "No parameters expected for command " + command.command());
         }
     }
 
     private static ExecutableCommand statusCommand(final Command command) {
-        final Long chatId = command.chatId();
         if (command.parameters().isEmpty()) {
-            return new StatusCommand(chatId);
+            return new StatusCommand(command.chatId());
         } else {
-            return new InvalidCommand(chatId, "No parameters expected for command " + command.command());
+            return new InvalidCommand(command.chatId(), "No parameters expected for command " + command.command());
         }
     }
 
     private ExecutableCommand showCommand(final Command command) {
-        final Long chatId = command.chatId();
         if (command.parameters().size() == 1) {
             final Provider provider = providers.get(command.parameters().getFirst());
             if (provider == null) {
-                return new InvalidCommand(chatId, "Unknown provider " + command.parameters().getFirst());
+                return new InvalidCommand(command.chatId(), "Unknown provider " + command.parameters().getFirst());
             } else {
-                return new ShowCommand(chatId, provider, instantSource);
+                return new ShowCommand(command.chatId(), provider, instantSource);
             }
         } else {
-            return new InvalidCommand(chatId, "Exactly 1 parameter expected for command " + command.command());
+            return new InvalidCommand(command.chatId(), "Exactly 1 parameter expected for command " + command.command());
         }
     }
 

@@ -95,6 +95,8 @@ public class StorageService {
     public int cleanup(final int writeCostLimit) {
         int limitLeft = writeCostLimit;
         limitLeft -= cleanupSettings(limitLeft);
+        limitLeft -= cleanupCommands(limitLeft);
+        limitLeft -= cleanupSubscriptions(limitLeft);
         limitLeft -= cleanupUnknown(limitLeft);
         return writeCostLimit - limitLeft;
     }
@@ -181,6 +183,7 @@ public class StorageService {
     public Collection<Command> getCommands() {
         return this.commands.getAll()
                 .stream()
+                .filter(record -> record.chatId() != null)
                 .map(record -> new Command(
                         record.id(),
                         record.chatId(),
@@ -206,6 +209,20 @@ public class StorageService {
 
     public void removeCommand(final String id) {
         this.commands.remove(id);
+    }
+
+    private int cleanupCommands(final int writeCostLimit) {
+        final Collection<String> cleanupIds = this.commands.getAll()
+                .stream()
+                .filter(record -> record.chatId() == null)
+                .limit(writeCostLimit) // assuming here that removing a record has write-cost of 1
+                .map(CommandRecord::id)
+                .toList();
+        if (!cleanupIds.isEmpty()) {
+            log.info("Cleaning up {} command records with missing chat id", cleanupIds.size());
+            cleanupIds.forEach(this.commands::remove);
+        }
+        return cleanupIds.size();
     }
 
     public Collection<ProviderState> getProviderStates() {
@@ -238,6 +255,7 @@ public class StorageService {
         final Map<String, SubscriptionCacheRecord> subscriptionCache = getSubscriptionCache();
         return this.subscription.getAll()
                 .stream()
+                .filter(record -> record.chatId() != null)
                 .map(subscriptionRecord -> Optional.ofNullable(subscriptionRecord.properties())
                         .map(SubscriptionProperties::cacheRef)
                         .map(subscriptionCache::get)
@@ -328,6 +346,20 @@ public class StorageService {
         }
     }
 
+    private int cleanupSubscriptions(final int writeCostLimit) {
+        final Collection<String> cleanupIds = this.subscription.getAll()
+                .stream()
+                .filter(record -> record.chatId() == null)
+                .limit(writeCostLimit) // assuming here that removing a record has write-cost of 1
+                .map(SubscriptionRecord::id)
+                .toList();
+        if (!cleanupIds.isEmpty()) {
+            log.info("Cleaning up {} subscription records with missing chat id", cleanupIds.size());
+            cleanupIds.forEach(this.subscription::remove);
+        }
+        return cleanupIds.size();
+    }
+
     public int estimateWriteCost(final Subscription subscription) {
         return getSubscriptionCacheRef(subscription.provider(), subscription.data())
                 .map(cacheRef -> {
@@ -384,7 +416,7 @@ public class StorageService {
 
     private Collection<String> findSubscriptionIds(
             final Map<String, SubscriptionCacheRecord> subscriptionCache,
-            final Long chatId,
+            final long chatId,
             final String provider
     ) {
         return this.subscription.getAll()

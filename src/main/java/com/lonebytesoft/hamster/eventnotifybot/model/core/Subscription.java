@@ -1,7 +1,7 @@
 package com.lonebytesoft.hamster.eventnotifybot.model.core;
 
 public record Subscription(
-        Long chatId,
+        long chatId,
         String provider,
         String data
 ) {

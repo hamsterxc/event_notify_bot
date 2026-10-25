@@ -102,15 +102,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
                         .stream()
                         .sorted(Comparator.comparing(Command::time))
                         .toList(),
-                command -> {
-                    final Long chatId = command.chatId();
-                    if (chatId == null) {
-                        log.warn("Chat id missing in stored command: {}", command);
-                        return false;
-                    } else {
-                        return telegramChatsTracker.isAllowed(chatId);
-                    }
-                },
+                command -> telegramChatsTracker.isAllowed(command.chatId()),
                 command -> commandParsingService.parseCommand(command)
                         .orElse(null),
                 command -> estimateCost(command, 1), // max of additional cost of incomplete and complete executions
@@ -144,15 +136,10 @@ public class EventNotifyBotJobHandler implements JobHandler {
                                         .flatMap(commandParsingService::parseMessage)
                         ))
                         .toList(),
-                command -> {
-                    final Optional<Long> chatId = command.command().map(Command::chatId);
-                    if (chatId.isEmpty()) {
-                        log.warn("Chat id missing in Telegram command: {}", command);
-                        return false;
-                    } else {
-                        return telegramChatsTracker.isAllowed(chatId.get());
-                    }
-                },
+                command -> command.command()
+                        .map(Command::chatId)
+                        .map(telegramChatsTracker::isAllowed)
+                        .orElse(false),
                 command -> command.command()
                         .flatMap(commandParsingService::parseCommand)
                         .orElse(null),
@@ -373,18 +360,10 @@ public class EventNotifyBotJobHandler implements JobHandler {
                         .stream()
                         .filter(subscription -> providers.containsKey(subscription.provider()))
                         .filter(subscription -> !Objects.equals(subscription.data(), providerStates.get(subscription.provider())))
-                        .sorted(Comparator.nullsLast(Comparator.comparing(Subscription::chatId))
+                        .sorted(Comparator.comparing(Subscription::chatId)
                                 .thenComparing(Comparator.nullsLast(Comparator.comparing(Subscription::provider))))
                         .toList(),
-                subscription -> {
-                    final Long chatId = subscription.chatId();
-                    if (chatId == null) {
-                        log.warn("Chat id missing in subscription: {}", subscription);
-                        return false;
-                    } else {
-                        return telegramChatsTracker.isAllowed(chatId);
-                    }
-                },
+                subscription -> telegramChatsTracker.isAllowed(subscription.chatId()),
                 subscription -> new SubscriptionUpdateCommand(
                         subscription.chatId(),
                         providers.get(subscription.provider()),

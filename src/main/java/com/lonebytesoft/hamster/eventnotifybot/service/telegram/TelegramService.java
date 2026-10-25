@@ -72,7 +72,7 @@ public class TelegramService {
     }
 
     public Optional<Message> sendMessage(
-            final Long chatId,
+            final long chatId,
             final String imageUrl,
             final String textHtml,
             final Boolean showLinkPreview

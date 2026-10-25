@@ -7,7 +7,7 @@ import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 import java.util.Optional;
 
 public record HelpCommand(
-        Long chatId
+        long chatId
 ) implements ExecutableCommand {
 
     private static final String REPOSITORY_PLACEHOLDER = "%REPOSITORY%";

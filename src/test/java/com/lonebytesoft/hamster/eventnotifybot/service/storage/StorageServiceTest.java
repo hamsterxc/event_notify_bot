@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils.compress;
+import static com.lonebytesoft.hamster.eventnotifybot.test.Assertions.assertDynamoDbRecordsEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -131,6 +132,19 @@ public class StorageServiceTest {
         commands = storageService.getCommands();
         assertEquals(1, commands.size());
         assertCommandEquals(first, commands.iterator().next());
+    }
+
+    @Test
+    public void commands_nullChatId() {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "command", null, 101L, serialize(new CommandProperties("first", List.of("1"))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "command", "12", 102L, serialize(new CommandProperties("second", List.of("2")))))
+        ));
+
+        assertEquals(2, storageService.fetch());
+        assertEquals(List.of(
+                new Command("1002", 12L, 102L, "second", List.of("2"))
+        ), storageService.getCommands());
     }
 
     @Test
@@ -443,6 +457,20 @@ public class StorageServiceTest {
     }
 
     @Test
+    public void subscriptions_nullChatId() {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "subscription", null, 101L, serialize(new SubscriptionProperties("1003")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "subscription", "12", 102L, serialize(new SubscriptionProperties("1003")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1003", "subscription_cache", "mock", 103L, compress("data".getBytes())))
+        ));
+
+        assertEquals(3, storageService.fetch());
+        assertEquals(List.of(
+                new Subscription(12L, "mock", "data")
+        ), storageService.getSubscriptions());
+    }
+
+    @Test
     public void subscriptions_addDuplicate() {
         assertEquals(0, storageService.fetch());
         Collection<Subscription> subscriptions = storageService.getSubscriptions();
@@ -596,37 +624,45 @@ public class StorageServiceTest {
         dynamoDbService.write(List.of(
                 DynamoDbWriteRequest.put(new DynamoDbRecord("1001", "settings", null, 101L, serialize(new SettingsProperties(1L)))),
                 DynamoDbWriteRequest.put(new DynamoDbRecord("1002", "settings", null, 102L, serialize(new SettingsProperties(2L)))),
-                DynamoDbWriteRequest.put(new DynamoDbRecord("1003", "command", "10003", 103L, serialize(new CommandProperties("test", List.of())))),
-                DynamoDbWriteRequest.put(new DynamoDbRecord("1004", "invalid", null, 104L, null)),
-                DynamoDbWriteRequest.put(new DynamoDbRecord("1005", "invalid", null, 105L, null))
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1003", "command", "10003", 103L, serialize(new CommandProperties("first", List.of())))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1004", "command", null, 104L, serialize(new CommandProperties("second", List.of())))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1005", "subscription", null, 105L, serialize(new SubscriptionProperties("1007")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1006", "subscription", "10006", 106L, serialize(new SubscriptionProperties("1008")))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1007", "subscription_cache", "mock", 107L, compress("data-1".getBytes()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1008", "subscription_cache", "mock", 108L, compress("data-2".getBytes()))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1009", "invalid", null, 109L, null)),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1010", "invalid", null, 110L, null))
         ));
 
-        assertEquals(5, storageService.fetch());
+        assertEquals(10, storageService.fetch());
+
         assertEquals(2, storageService.cleanup(2));
         assertEquals(2, storageService.flush());
-
         DynamoDbReadResponse readResponse = dynamoDbService.read();
-        assertEquals(3, readResponse.consumedCapacity());
+        assertEquals(8, readResponse.consumedCapacity());
 
         Map<String, List<DynamoDbRecord>> records = readResponse.records()
                 .stream()
                 .collect(Collectors.groupingBy(DynamoDbRecord::type));
-        assertEquals(1, records.get("command").size());
+        // it is undefined, which records exactly are cleaned up
         assertFalse(records.get("settings").isEmpty());
-        assertEquals(2, records.get("settings").size() + records.get("invalid").size()); // it is undefined, which records exactly are cleaned up
+        assertFalse(records.get("command").isEmpty());
+        assertFalse(records.get("subscription").isEmpty());
+        assertTrue(records.get("subscription_cache").size() >= 2);
 
-        assertEquals(1, storageService.cleanup(2));
-        assertEquals(1, storageService.flush());
+        assertEquals(3, storageService.cleanup(5));
+        assertEquals(3, storageService.flush());
 
         readResponse = dynamoDbService.read();
-        assertEquals(2, readResponse.consumedCapacity());
-
-        records = readResponse.records()
-                .stream()
-                .collect(Collectors.groupingBy(DynamoDbRecord::type));
-        assertEquals(2, records.size()); // now all extra records are removed
-        assertEquals(1, records.get("command").size());
-        assertEquals(1, records.get("settings").size());
+        // now all extra records are removed
+        assertEquals(5, readResponse.consumedCapacity());
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("1002", "settings", null, 102L, serialize(new SettingsProperties(2L))),
+                new DynamoDbRecord("1003", "command", "10003", 103L, serialize(new CommandProperties("first", List.of()))),
+                new DynamoDbRecord("1006", "subscription", "10006", 106L, serialize(new SubscriptionProperties("1008"))),
+                new DynamoDbRecord("1007", "subscription_cache", "mock", 107L, compress("data-1".getBytes())),
+                new DynamoDbRecord("1008", "subscription_cache", "mock", 108L, compress("data-2".getBytes()))
+        ), readResponse.records());
     }
 
     private byte[] serialize(Object value) {

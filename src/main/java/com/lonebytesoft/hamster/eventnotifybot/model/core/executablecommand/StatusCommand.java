@@ -4,12 +4,11 @@ import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 public record StatusCommand(
-        Long chatId
+        long chatId
 ) implements ExecutableCommand {
 
     private static final String RESOURCE_FOLDER = "message/command";
@@ -26,7 +25,7 @@ public record StatusCommand(
     public boolean execute(StorageService storageService, TelegramService telegramService) {
         final String subscriptionsValue = Optional.of(storageService.getSubscriptions()
                         .stream()
-                        .filter(subscription -> Objects.equals(chatId, subscription.chatId()))
+                        .filter(subscription -> chatId == subscription.chatId())
                         .toList())
                 .filter(subscriptions -> !subscriptions.isEmpty())
                 .map(subscriptions -> subscriptions

@@ -7,6 +7,7 @@ import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.function.Function;
 
 class CommandsShadow extends StorageShadow<CommandRecord> {
@@ -21,7 +22,7 @@ class CommandsShadow extends StorageShadow<CommandRecord> {
     private static Function<DynamoDbRecord, CommandRecord> entityBuilder(final JsonMapper jsonMapper) {
         return record -> new CommandRecord(
                 record.id(),
-                Long.valueOf(record.subject()),
+                Optional.ofNullable(record.subject()).map(Long::valueOf).orElse(null),
                 record.time(),
                 jsonMapper.readValue(ZipUtils.decompress(record.data()), CommandProperties.class)
         );

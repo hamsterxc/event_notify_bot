@@ -7,6 +7,7 @@ import com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.function.Function;
 
 class SubscriptionShadow extends StorageShadow<SubscriptionRecord> {
@@ -21,7 +22,7 @@ class SubscriptionShadow extends StorageShadow<SubscriptionRecord> {
     private static Function<DynamoDbRecord, SubscriptionRecord> entityBuilder(final JsonMapper jsonMapper) {
         return record -> new SubscriptionRecord(
                 record.id(),
-                Long.valueOf(record.subject()),
+                Optional.ofNullable(record.subject()).map(Long::valueOf).orElse(null),
                 record.time(),
                 jsonMapper.readValue(ZipUtils.decompress(record.data()), SubscriptionProperties.class)
         );

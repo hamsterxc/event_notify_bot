@@ -5,7 +5,7 @@ import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageServi
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 
 public record UnknownCommand(
-        Long chatId,
+        long chatId,
         String command
 ) implements ExecutableCommand {
 

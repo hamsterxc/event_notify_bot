@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public record SubscriptionUpdateCommand(
-        Long chatId,
+        long chatId,
         Provider provider,
         String dataOld,
         String dataNew
