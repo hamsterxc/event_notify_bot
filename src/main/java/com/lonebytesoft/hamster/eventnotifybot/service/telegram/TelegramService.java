@@ -1,8 +1,8 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.telegram;
 
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Update;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.User;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Message;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Update;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

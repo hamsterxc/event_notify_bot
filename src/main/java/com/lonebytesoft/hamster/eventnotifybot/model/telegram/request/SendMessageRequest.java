@@ -1,13 +1,11 @@
-package com.lonebytesoft.hamster.eventnotifybot.model.telegram;
+package com.lonebytesoft.hamster.eventnotifybot.model.telegram.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record SendPhotoRequest(
+public record SendMessageRequest(
         @JsonProperty("chat_id")
         Long chatId,
-        @JsonProperty("photo")
-        String photoUrl,
-        String caption,
+        String text,
         @JsonProperty("parse_mode")
         String parseMode,
         @JsonProperty("link_preview_options")

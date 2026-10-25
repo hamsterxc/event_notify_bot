@@ -4,7 +4,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.ProviderState;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Settings;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Subscription;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Update;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Update;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.CommandParsingService;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.ExecutableCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.SubscriptionUpdateCommand;

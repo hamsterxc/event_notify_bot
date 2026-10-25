@@ -1,4 +1,4 @@
-package com.lonebytesoft.hamster.eventnotifybot.model.telegram;
+package com.lonebytesoft.hamster.eventnotifybot.model.telegram.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

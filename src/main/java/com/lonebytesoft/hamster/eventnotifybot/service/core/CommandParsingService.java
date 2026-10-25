@@ -1,8 +1,8 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.core;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Chat;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Chat;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Message;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.CommandType;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.ExecutableCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.HelpCommand;

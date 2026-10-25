@@ -1,8 +1,8 @@
 package com.lonebytesoft.hamster.eventnotifybot.test.mock;
 
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Update;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.User;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Message;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Update;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.User;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramApi;
 
 import java.util.ArrayList;

@@ -5,9 +5,9 @@ import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbWr
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.CommandProperties;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SettingsProperties;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.properties.SubscriptionProperties;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Chat;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
-import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Update;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Chat;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Message;
+import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Update;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.CommandParsingService;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
