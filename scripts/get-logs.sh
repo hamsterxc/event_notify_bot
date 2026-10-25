@@ -2,6 +2,11 @@
 
 source "$(dirname "$0")/common.sh"
 
+show_timestamps='false'
+if [[ "${1:-}" = '--timestamps' ]]; then
+  show_timestamps='true'
+fi
+
 function format_date() {
     local date="$1"
 
@@ -28,5 +33,9 @@ aws logs get-log-events \
   | jq -c '.events[]' \
   | \
 while IFS= read -r log_event; do
-  echo "$(format_date $(field "$log_event" '.timestamp')) $(field "$log_event" '.message')"
+  if [[ "$show_timestamps" = 'true' ]]; then
+    echo "$(format_date $(field "$log_event" '.timestamp')) $(field "$log_event" '.message')"
+  else
+    echo "$(field "$log_event" '.message')"
+  fi
 done
