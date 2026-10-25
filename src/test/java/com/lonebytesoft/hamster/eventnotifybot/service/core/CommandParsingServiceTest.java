@@ -1,13 +1,13 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.core;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
-import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.HelpCommand;
-import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.InvalidCommand;
-import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.ShowCommand;
-import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.StatusCommand;
-import com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand.UnknownCommand;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Chat;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.Message;
+import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.HelpCommand;
+import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.InvalidCommand;
+import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.ShowCommand;
+import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.StatusCommand;
+import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.UnknownCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.ProviderMock;
 import org.junit.jupiter.api.Test;

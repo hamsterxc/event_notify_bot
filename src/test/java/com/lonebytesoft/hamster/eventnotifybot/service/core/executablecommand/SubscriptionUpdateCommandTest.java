@@ -1,4 +1,4 @@
-package com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand;
+package com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.provider.ProviderView;
 import com.lonebytesoft.hamster.eventnotifybot.model.storage.dynamodb.DynamoDbRecord;

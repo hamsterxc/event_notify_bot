@@ -1,4 +1,4 @@
-package com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand;
+package com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand;
 
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Subscription;
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;

@@ -1,23 +1,23 @@
-package com.lonebytesoft.hamster.eventnotifybot.model.core.executablecommand;
+package com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand;
 
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 
-public record UnknownCommand(
+public record InvalidCommand(
         long chatId,
-        String command
+        String error
 ) implements ExecutableCommand {
 
-    private static final String MESSAGE_TEMPLATE = ResourceUtils.read("message/command/unknown.html");
-    private static final String COMMAND_PLACEHOLDER = "%COMMAND%";
+    private static final String MESSAGE_TEMPLATE = ResourceUtils.read("message/command/invalid.html");
+    private static final String ERROR_PLACEHOLDER = "%ERROR%";
 
     @Override
     public boolean execute(StorageService storageService, TelegramService telegramService) {
         telegramService.sendMessage(
                 chatId,
                 null,
-                MESSAGE_TEMPLATE.replace(COMMAND_PLACEHOLDER, command).trim(),
+                MESSAGE_TEMPLATE.replace(ERROR_PLACEHOLDER, error).trim(),
                 false
         );
         return true;
