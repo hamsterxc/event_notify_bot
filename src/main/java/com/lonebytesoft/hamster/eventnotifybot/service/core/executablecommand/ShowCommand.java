@@ -4,10 +4,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.ProviderState;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
 import java.time.InstantSource;
 import java.util.Comparator;
 import java.util.Objects;
@@ -19,8 +16,6 @@ public record ShowCommand(
         Provider provider,
         InstantSource instantSource
 ) implements ExecutableCommand {
-
-    private static final Logger log = LoggerFactory.getLogger(ShowCommand.class);
 
     private static final long PROVIDER_STATE_UPDATE_BUFFER_SECONDS = TimeUnit.MINUTES.toSeconds(1);
 
@@ -44,17 +39,7 @@ public record ShowCommand(
                     return true;
                 })
                 .orElseGet(() -> {
-                    provider.getData()
-                            .ifPresent(data -> {
-                                final String providerName = provider.name();
-                                final Instant nextUpdateTime = provider.getNextUpdateTime();
-                                storageService.setProviderState(new ProviderState(
-                                        providerName,
-                                        Optional.ofNullable(nextUpdateTime).map(Instant::getEpochSecond).orElse(null),
-                                        data
-                                ));
-                                log.info("Updated '{}' provider state, next update at {}", providerName, nextUpdateTime);
-                            });
+                    getProviderUpdateCommand().execute(storageService, telegramService);
                     return false;
                 });
     }
@@ -68,7 +53,9 @@ public record ShowCommand(
     public Integer estimateWriteCost(StorageService storageService) {
         return getProviderState(storageService)
                 .filter(providerState -> isActualState(providerState, PROVIDER_STATE_UPDATE_BUFFER_SECONDS))
-                .isPresent() ? 0 : null;
+                .isPresent()
+                ? Integer.valueOf(0)
+                : getProviderUpdateCommand().estimateWriteCost(storageService);
     }
 
     private Optional<ProviderState> getProviderState(final StorageService storageService) {
@@ -76,6 +63,10 @@ public record ShowCommand(
                 .stream()
                 .filter(providerState -> Objects.equals(provider.name(), providerState.provider()))
                 .min(Comparator.comparing(ProviderState::time, Comparator.nullsFirst(Comparator.naturalOrder())));
+    }
+
+    private ExecutableCommand getProviderUpdateCommand() {
+        return new ProviderUpdateCommand(provider);
     }
 
     private boolean isActualState(

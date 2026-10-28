@@ -7,6 +7,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.Subscription;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Update;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.CommandParsingService;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.ExecutableCommand;
+import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.ProviderUpdateCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.SubscriptionUpdateCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
@@ -15,7 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.time.InstantSource;
 import java.util.Collection;
 import java.util.Comparator;
@@ -61,27 +61,14 @@ public class EventNotifyBotJobHandler implements JobHandler {
         budget -= processTelegramCommands(budget, telegramChatsTracker);
         log.debug("Processed Telegram commands, budget remaining: {}/{}", budget, writeCostLimit);
 
-        for (final Provider provider : getUpdatableProviders()) {
-            final String providerName = provider.name();
-            // updating provider state only with full budget
-            if (budget == writeCostLimit) {
-                provider.getData()
-                        .ifPresent(data -> {
-                            final Instant nextUpdateTime = provider.getNextUpdateTime();
-                            storageService.setProviderState(new ProviderState(
-                                    providerName,
-                                    Optional.ofNullable(nextUpdateTime).map(Instant::getEpochSecond).orElse(null),
-                                    data
-                            ));
-                            log.info("Updated '{}' provider state, next update at {}", providerName, nextUpdateTime);
-                        });
-                budget -= storageService.flush();
-            } else {
-                log.debug("Updating '{}' provider state on the next run, when full budget is available", providerName);
-                return;
-            }
+        final Integer providerStatesUpdateCost = updateProviderStates(budget);
+        if (providerStatesUpdateCost == null) {
+            log.debug("Updated provider states, updating further provider states on the next run");
+            return;
+        } else {
+            budget -= providerStatesUpdateCost;
+            log.debug("Updated provider states, budget remaining: {}/{}", budget, writeCostLimit);
         }
-        log.debug("Updated provider states, budget remaining: {}/{}", budget, writeCostLimit);
 
         budget -= sendSubscriptionUpdates(budget, telegramChatsTracker);
         log.debug("Processed provider updates, budget remaining: {}/{}", budget, writeCostLimit);
@@ -359,6 +346,33 @@ public class EventNotifyBotJobHandler implements JobHandler {
                 .toList();
     }
 
+    private Integer updateProviderStates(
+            final int budget
+    ) {
+        final List<UpdatableProvider> updatableProviders = getUpdatableProviders()
+                .stream()
+                .map(UpdatableProvider::new)
+                .toList();
+
+        process(
+                budget,
+                writeCostLimit,
+                updatableProviders,
+                _ -> true,
+                provider -> new ProviderUpdateCommand(provider.provider()),
+                command -> estimateCost(command, 0),
+                _ -> 0, // command is always available
+                _ -> 0, // do nothing if command is skipped
+                _ -> {}, // command always completes
+                UpdatableProvider::setUpdated
+        );
+
+        final int writeCost = storageService.flush();
+        return updatableProviders.stream().anyMatch(provider -> !provider.isUpdated())
+                ? null
+                : writeCost;
+    }
+
     private int sendSubscriptionUpdates(
             final int budget,
             final TelegramChatsTracker telegramChatsTracker
@@ -437,6 +451,29 @@ public class EventNotifyBotJobHandler implements JobHandler {
 
         public Long getUpdateId() {
             return updateId;
+        }
+
+    }
+
+    private static class UpdatableProvider {
+
+        private final Provider provider;
+        private boolean isUpdated = false;
+
+        public UpdatableProvider(final Provider provider) {
+            this.provider = provider;
+        }
+
+        public Provider provider() {
+            return provider;
+        }
+
+        public void setUpdated() {
+            this.isUpdated = true;
+        }
+
+        public boolean isUpdated() {
+            return isUpdated;
         }
 
     }

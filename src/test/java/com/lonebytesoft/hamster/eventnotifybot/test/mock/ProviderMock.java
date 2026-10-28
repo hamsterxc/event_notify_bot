@@ -16,7 +16,7 @@ public record ProviderMock(
 
     @Override
     public Optional<String> getData() {
-        return Optional.of(data);
+        return Optional.ofNullable(data);
     }
 
     @Override
