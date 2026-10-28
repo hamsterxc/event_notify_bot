@@ -9,6 +9,7 @@ import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Chat;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Message;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Update;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.CommandParsingService;
+import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 import com.lonebytesoft.hamster.eventnotifybot.test.StorageUtils;
@@ -23,6 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.InstantSource;
+import java.util.Collection;
 import java.util.List;
 
 import static com.lonebytesoft.hamster.eventnotifybot.service.ZipUtils.compress;
@@ -39,16 +41,17 @@ public class EventNotifyBotJobHandlerTest {
     private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, instantSource, WRITE_COST_LIMIT);
     private final TelegramApiMock telegramApi = new TelegramApiMock();
     private final TelegramService telegramService = new TelegramService(telegramApi);
-    private final CommandParsingService commandParsingService = new CommandParsingService(List.of(), null);
+    private final Collection<Provider> providers = List.of(
+            new ProviderMock("mock-first", "data-first", Instant.parse("2026-01-01T18:00:00Z"), "image-url-first", "view-first"),
+            new ProviderMock("mock-second", "data-second", Instant.parse("2026-01-01T20:00:00Z"), "image-url-second", "view-second")
+    );
+    private final CommandParsingService commandParsingService = new CommandParsingService(providers, null);
     private final EventNotifyBotJobHandler handler = new EventNotifyBotJobHandler(new ApplicationContextMock(
             storageService,
             telegramService,
             commandParsingService,
             instantSource,
-            List.of(
-                    new ProviderMock("mock-first", "data-first", Instant.parse("2026-01-01T18:00:00Z"), "image-url-first", "view-first"),
-                    new ProviderMock("mock-second", "data-second", Instant.parse("2026-01-01T20:00:00Z"), "image-url-second", "view-second")
-            ),
+            providers,
             WRITE_COST_LIMIT
     ));
 
@@ -714,6 +717,44 @@ public class EventNotifyBotJobHandlerTest {
         assertEquals(List.of(
                 new TelegramApiMock.SentMessage(1001L, null, "Unrecognized command: <b>twelfth</b>")
         ), telegramApi.getSentMessages());
+    }
+
+    @Test
+    public void run_noCommandsOneMessageUnknownCost_noCommandsExecutedOneMessageProcessed() throws Exception {
+        telegramApi.setUpdates(List.of(
+                new Update(1L, new Message(11L, 101L, new Chat(1001L, "private"), "/show mock-first"))
+        ));
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(1L))),
+                new DynamoDbRecord(null, "provider_state", "mock-first", Instant.parse("2026-01-01T18:00:00Z").getEpochSecond(), compress("data-first".getBytes())),
+                new DynamoDbRecord(null, "command", "1001", 101L, serialize(new CommandProperties("show", List.of("mock-first"))))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(), telegramApi.getSentMessages());
+    }
+
+    @Test
+    public void run_oneCommandWithinBudgetOneMessageUnknownCost_oneCommandExecutedNoMessagesProcessed() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "command", "1002", 102L, serialize(new CommandProperties("show", List.of("mock-second")))))
+        ));
+        telegramApi.setUpdates(List.of(
+                new Update(1L, new Message(11L, 101L, new Chat(1001L, "private"), "/show mock-first"))
+        ));
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(1L))),
+                new DynamoDbRecord(null, "provider_state", "mock-second", Instant.parse("2026-01-01T20:00:00Z").getEpochSecond(), compress("data-second".getBytes())),
+                new DynamoDbRecord(null, "command", "1001", 101L, serialize(new CommandProperties("show", List.of("mock-first")))),
+                new DynamoDbRecord(null, "command", "1002", 102L, serialize(new CommandProperties("show", List.of("mock-second"))))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(), telegramApi.getSentMessages());
     }
 
     /*

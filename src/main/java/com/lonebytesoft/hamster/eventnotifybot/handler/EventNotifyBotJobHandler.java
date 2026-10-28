@@ -99,6 +99,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
     ) {
         process(
                 budget,
+                writeCostLimit,
                 storageService.getCommands()
                         .stream()
                         .sorted(Comparator.comparing(Command::time))
@@ -139,6 +140,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
 
         process(
                 budget - 1,
+                writeCostLimit - 1,
                 telegramService.getUpdates(telegramUpdatesTracker.getUpdateId())
                         .stream()
                         .sorted(Comparator.comparing(Update::id))
@@ -195,6 +197,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
      * Process the entities (commands), keeping track of write budget.
      * All cost calculators must return the upper bound of the cost.
      * @param budget write cost budget
+     * @param fullBudget the total available write cost budget for decisions about unknown-cost commands execution
      * @param entities entities to process
      * @param condition the guard signalling whether the entity can be processed
      * @param commandConverter the converter of an entity into an {@link ExecutableCommand}
@@ -208,6 +211,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
      */
     private <T> int process(
             final int budget,
+            final int fullBudget,
             final List<T> entities,
             final Function<T, Boolean> condition,
             final Function<T, ExecutableCommand> commandConverter,
@@ -259,7 +263,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
             if (cost == null) {
                 // cost is unknown, executing the command only if full budget is available
                 // otherwise it will be picked up later
-                if (remainingBudget == budget) {
+                if (remainingBudget == fullBudget) {
                     if (command.execute(storageService, telegramService)) {
                         onCompleteExecution.accept(entity);
                     } else {
@@ -287,7 +291,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
                     remainingBudget -= cost;
                     continue;
                 } else {
-                    if (remainingBudget == budget) {
+                    if (remainingBudget == fullBudget) {
                         log.warn("Command execution estimated cost ({}) exceeds budget ({}), executing anyway since the full budget is still available: {}",
                                 cost, budget, command);
                         if (command.execute(storageService, telegramService)) {
@@ -368,6 +372,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
 
         process(
                 budget,
+                writeCostLimit,
                 storageService.getSubscriptions()
                         .stream()
                         .filter(subscription -> providers.containsKey(subscription.provider()))
