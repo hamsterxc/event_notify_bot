@@ -12,6 +12,7 @@ public enum CommandType {
     HELP,
     STATUS,
     SHOW,
+    SUBSCRIBE,
     INVALID,
     UNKNOWN,
     ;

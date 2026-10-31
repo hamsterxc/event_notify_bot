@@ -9,6 +9,7 @@ import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.He
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.InvalidCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.ShowCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.StatusCommand;
+import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.SubscribeCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.UnknownCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import org.slf4j.Logger;
@@ -125,6 +126,7 @@ public class CommandParsingService {
             case START, HELP -> helpCommand(command);
             case STATUS -> statusCommand(command);
             case SHOW -> showCommand(command);
+            case SUBSCRIBE -> subscribeCommand(command);
             case INVALID -> new InvalidCommand(command.chatId(), command.parameters().getFirst());
             case UNKNOWN -> new UnknownCommand(command.chatId(), command.parameters().getFirst());
         });
@@ -153,6 +155,19 @@ public class CommandParsingService {
                 return new InvalidCommand(command.chatId(), "Unknown provider " + command.parameters().getFirst());
             } else {
                 return new ShowCommand(command.chatId(), provider, instantSource);
+            }
+        } else {
+            return new InvalidCommand(command.chatId(), "Exactly 1 parameter expected for command " + command.command());
+        }
+    }
+
+    private ExecutableCommand subscribeCommand(final Command command) {
+        if (command.parameters().size() == 1) {
+            final Provider provider = providers.get(command.parameters().getFirst());
+            if (provider == null) {
+                return new InvalidCommand(command.chatId(), "Unknown provider " + command.parameters().getFirst());
+            } else {
+                return new SubscribeCommand(command.chatId(), provider, instantSource);
             }
         } else {
             return new InvalidCommand(command.chatId(), "Exactly 1 parameter expected for command " + command.command());

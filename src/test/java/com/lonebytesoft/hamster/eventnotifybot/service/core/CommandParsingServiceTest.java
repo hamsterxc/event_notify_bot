@@ -7,6 +7,7 @@ import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.He
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.InvalidCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.ShowCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.StatusCommand;
+import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.SubscribeCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.UnknownCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.ProviderMock;
@@ -490,6 +491,75 @@ public class CommandParsingServiceTest {
                         2L,
                         1L,
                         "show",
+                        List.of("provider", "foo")
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_subscribeNoParameters_invalid() {
+        assertEquals(
+                Optional.of(new InvalidCommand(
+                        2L,
+                        "Exactly 1 parameter expected for command subscribe"
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "subscribe",
+                        List.of()
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_subscribeOneParameterKnownProvider() {
+        assertEquals(
+                Optional.of(new SubscribeCommand(
+                        2L,
+                        provider,
+                        null
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "subscribe",
+                        List.of("provider")
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_subscribeOneParameterUnknownProvider_invalid() {
+        assertEquals(
+                Optional.of(new InvalidCommand(
+                        2L,
+                        "Unknown provider foo"
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "subscribe",
+                        List.of("foo")
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_subscribeTwoParameters_invalid() {
+        assertEquals(
+                Optional.of(new InvalidCommand(
+                        2L,
+                        "Exactly 1 parameter expected for command subscribe"
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "subscribe",
                         List.of("provider", "foo")
                 ))
         );
