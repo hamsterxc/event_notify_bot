@@ -9,6 +9,7 @@ import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.Sh
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.StatusCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.SubscribeCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.UnknownCommand;
+import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.UnsubscribeCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import com.lonebytesoft.hamster.eventnotifybot.test.mock.ProviderMock;
 import org.junit.jupiter.api.Test;
@@ -560,6 +561,57 @@ public class CommandParsingServiceTest {
                         2L,
                         1L,
                         "subscribe",
+                        List.of("provider", "foo")
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_unsubscribeNoParameters() {
+        assertEquals(
+                Optional.of(new UnsubscribeCommand(
+                        2L,
+                        null
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "unsubscribe",
+                        List.of()
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_unsubscribeOneParameterArbitraryProvider() {
+        assertEquals(
+                Optional.of(new UnsubscribeCommand(
+                        2L,
+                        "foo"
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "unsubscribe",
+                        List.of("foo")
+                ))
+        );
+    }
+
+    @Test
+    public void parseCommand_unsubscribeTwoParameters_invalid() {
+        assertEquals(
+                Optional.of(new InvalidCommand(
+                        2L,
+                        "Exactly 0 or 1 parameters expected for command unsubscribe"
+                )),
+                commandParsingService.parseCommand(new Command(
+                        null,
+                        2L,
+                        1L,
+                        "unsubscribe",
                         List.of("provider", "foo")
                 ))
         );

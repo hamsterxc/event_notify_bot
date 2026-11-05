@@ -11,6 +11,7 @@ import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.Sh
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.StatusCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.SubscribeCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.UnknownCommand;
+import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.UnsubscribeCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -127,6 +128,7 @@ public class CommandParsingService {
             case STATUS -> statusCommand(command);
             case SHOW -> showCommand(command);
             case SUBSCRIBE -> subscribeCommand(command);
+            case UNSUBSCRIBE -> unsubscribeCommand(command);
             case INVALID -> new InvalidCommand(command.chatId(), command.parameters().getFirst());
             case UNKNOWN -> new UnknownCommand(command.chatId(), command.parameters().getFirst());
         });
@@ -171,6 +173,15 @@ public class CommandParsingService {
             }
         } else {
             return new InvalidCommand(command.chatId(), "Exactly 1 parameter expected for command " + command.command());
+        }
+    }
+
+    private static ExecutableCommand unsubscribeCommand(final Command command) {
+        final int parametersCount = command.parameters().size();
+        if ((parametersCount == 0) || (parametersCount == 1)) {
+            return new UnsubscribeCommand(command.chatId(), command.parameters().stream().findFirst().orElse(null));
+        } else {
+            return new InvalidCommand(command.chatId(), "Exactly 0 or 1 parameters expected for command " + command.command());
         }
     }
 

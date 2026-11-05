@@ -324,7 +324,7 @@ public class StorageService {
     }
 
     public boolean removeSubscription(
-            final Long chatId,
+            final long chatId,
             final String provider
     ) {
         final Collection<String> subscriptionIds = findSubscriptionIds(

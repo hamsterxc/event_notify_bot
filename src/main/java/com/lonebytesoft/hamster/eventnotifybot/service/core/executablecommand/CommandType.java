@@ -13,6 +13,7 @@ public enum CommandType {
     STATUS,
     SHOW,
     SUBSCRIBE,
+    UNSUBSCRIBE,
     INVALID,
     UNKNOWN,
     ;
