@@ -55,6 +55,9 @@ public class EventNotifyBotJobHandler implements JobHandler {
         int budget = writeCostLimit;
         final TelegramChatsTracker telegramChatsTracker = new TelegramChatsTracker();
 
+        budget -= cleanup(budget);
+        log.debug("Cleaned up storage, budget remaining: {}/{}", budget, writeCostLimit);
+
         budget -= processStoredCommands(budget, telegramChatsTracker);
         log.debug("Processed stored commands, budget remaining: {}/{}", budget, writeCostLimit);
 
@@ -72,6 +75,13 @@ public class EventNotifyBotJobHandler implements JobHandler {
 
         budget -= sendSubscriptionUpdates(budget, telegramChatsTracker);
         log.debug("Processed provider updates, budget remaining: {}/{}", budget, writeCostLimit);
+    }
+
+    private int cleanup(
+            final int budget
+    ) {
+        storageService.cleanup(budget);
+        return storageService.flush();
     }
 
     /**

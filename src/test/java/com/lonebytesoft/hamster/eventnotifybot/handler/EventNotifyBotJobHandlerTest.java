@@ -161,6 +161,38 @@ public class EventNotifyBotJobHandlerTest {
     }
 
     /*
+    Given: 3 commands and 3 unknown records in storage, no Telegram updates.
+    Expected:
+    - settings not saved in storage,
+    - 3 unknown records deleted,
+    - 2 oldest commands deleted from storage, 1 left,
+    - 2 messages corresponding to 2 deleted commands sent in order of command time.
+     */
+    @Test
+    public void run_someCommandsSomeUnknownRecordsNoMessages_unknownRecordsDeletedSomeCommandsExecuted() throws Exception {
+        dynamoDbService.write(List.of(
+                DynamoDbWriteRequest.put(new DynamoDbRecord("1", "unknown", "11", 106L, null)),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("2", "unknown", "12", 105L, null)),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("3", "unknown", "13", 104L, null)),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("4", "command", "14", 103L, serialize(new CommandProperties("unknown", List.of("fourth"))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("5", "command", "15", 102L, serialize(new CommandProperties("unknown", List.of("fifth"))))),
+                DynamoDbWriteRequest.put(new DynamoDbRecord("6", "command", "16", 101L, serialize(new CommandProperties("unknown", List.of("sixth")))))
+        ));
+        telegramApi.setUpdates(List.of());
+
+        storageService.fetch();
+        handler.run(Duration.ZERO);
+
+        assertDynamoDbRecordsEquals(List.of(
+                new DynamoDbRecord("4", "command", "14", 103L, serialize(new CommandProperties("unknown", List.of("fourth"))))
+        ), dynamoDbService.read().records());
+        assertEquals(List.of(
+                new TelegramApiMock.SentMessage(16L, null, "Unrecognized command: <b>sixth</b>"),
+                new TelegramApiMock.SentMessage(15L, null, "Unrecognized command: <b>fifth</b>")
+        ), telegramApi.getSentMessages());
+    }
+
+    /*
     Given: 6 commands in storage (more than the expected limit), no Telegram updates.
     Expected:
     - settings not saved in storage,
