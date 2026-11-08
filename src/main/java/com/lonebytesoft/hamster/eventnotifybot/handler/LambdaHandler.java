@@ -56,13 +56,16 @@ public class LambdaHandler {
             }
 
             try {
-                jobHandler.run(Duration.ofMillis(Math.max(0, stopwatch.remaining() - cycleDurationMillis)));
+                jobHandler.run();
             } catch (Exception e) {
                 log.error("Error while running cycle", e);
                 return;
             }
             stopwatch = stopwatch.tick(context);
             log.debug("Ran cycle in {} ms", stopwatch.duration());
+        }
+        if (isFirstCycle) {
+            log.warn("No cycles run");
         }
     }
 

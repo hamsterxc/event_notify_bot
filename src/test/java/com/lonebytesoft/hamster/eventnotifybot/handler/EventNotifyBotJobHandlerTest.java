@@ -21,7 +21,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.time.InstantSource;
 import java.util.Collection;
@@ -74,7 +73,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(null)))
@@ -96,7 +95,7 @@ public class EventNotifyBotJobHandlerTest {
 
         for (int i = 0; i < 3; i++) {
             storageService.fetch();
-            handler.run(Duration.ZERO);
+            handler.run();
         }
 
         assertDynamoDbRecordsEquals(List.of(
@@ -121,7 +120,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(null)))
@@ -149,7 +148,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord("3", "settings", null, 103L, serialize(new SettingsProperties(1001L)))
@@ -181,7 +180,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord("4", "command", "14", 103L, serialize(new CommandProperties("unknown", List.of("fourth"))))
@@ -212,7 +211,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord("1", "command", "11", 106L, serialize(new CommandProperties("unknown", List.of("first"))))
@@ -243,7 +242,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         // only the most recent command processed
         assertDynamoDbRecordsEquals(List.of(
@@ -276,7 +275,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         // only the oldest command processed
         assertDynamoDbRecordsEquals(List.of(
@@ -306,7 +305,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(2L)))
@@ -336,7 +335,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(2L)))
@@ -369,7 +368,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord("5", "settings", null, null, serialize(new SettingsProperties(10002L)))
@@ -405,7 +404,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 // no settings updated because commands exhausted the whole budget
@@ -436,7 +435,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         // only the most recent message processed
         assertDynamoDbRecordsEquals(List.of(
@@ -468,7 +467,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         // only the most recent command processed
         assertDynamoDbRecordsEquals(List.of(
@@ -505,7 +504,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         // only the most recent command processed
         assertDynamoDbRecordsEquals(List.of(
@@ -541,7 +540,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         // only four messages processed due to cautious budget spending
         assertDynamoDbRecordsEquals(List.of(
@@ -578,7 +577,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         // only two messages processed due to cautious budget spending
         assertDynamoDbRecordsEquals(List.of(
@@ -619,7 +618,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 // no settings updated because commands exhausted the whole budget
@@ -653,7 +652,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         // only four messages processed due to cautious budget spending
         assertDynamoDbRecordsEquals(List.of(
@@ -691,7 +690,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         // only two messages processed due to cautious budget spending
         assertDynamoDbRecordsEquals(List.of(
@@ -734,7 +733,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(3L))),
@@ -759,7 +758,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(1L))),
@@ -779,7 +778,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(1L))),
@@ -808,7 +807,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(null))),
@@ -841,7 +840,7 @@ public class EventNotifyBotJobHandlerTest {
         ));
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord(null, "settings", null, null, serialize(new SettingsProperties(2L))),
@@ -871,7 +870,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
@@ -896,7 +895,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
@@ -923,7 +922,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         final long providerTime = Instant.parse("2026-01-01T18:00:00Z").getEpochSecond();
         final long subscriptionTime = Instant.parse("2026-01-01T12:00:00Z").getEpochSecond();
@@ -960,7 +959,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
@@ -985,7 +984,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
@@ -1013,7 +1012,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         final long providerTime = Instant.parse("2026-01-01T18:00:00Z").getEpochSecond();
         final long subscriptionTime = Instant.parse("2026-01-01T12:00:00Z").getEpochSecond();
@@ -1056,7 +1055,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
@@ -1089,7 +1088,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         assertDynamoDbRecordsEquals(List.of(
                 new DynamoDbRecord("1", "settings", null, 101L, serialize(new SettingsProperties(1001L))),
@@ -1129,7 +1128,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         final long time = Instant.parse("2026-01-01T12:00:00Z").getEpochSecond();
         final String cacheRef = storageUtils.getSubscriptionCacheRefs().get("4");
@@ -1203,7 +1202,7 @@ public class EventNotifyBotJobHandlerTest {
         telegramApi.setUpdates(List.of());
 
         storageService.fetch();
-        handler.run(Duration.ZERO);
+        handler.run();
 
         final long subscriptionTime = Instant.parse("2026-01-01T12:00:00Z").getEpochSecond();
         assertDynamoDbRecordsEquals(List.of(

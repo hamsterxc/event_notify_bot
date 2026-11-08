@@ -15,7 +15,6 @@ import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.time.InstantSource;
 import java.util.Collection;
 import java.util.Comparator;
@@ -51,7 +50,7 @@ public class EventNotifyBotJobHandler implements JobHandler {
     }
 
     @Override
-    public void run(Duration extraTimeout) throws Exception {
+    public void run() throws Exception {
         int budget = writeCostLimit;
         final TelegramChatsTracker telegramChatsTracker = new TelegramChatsTracker();
 
