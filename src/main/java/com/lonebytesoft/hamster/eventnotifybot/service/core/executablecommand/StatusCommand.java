@@ -1,15 +1,21 @@
 package com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand;
 
+import com.lonebytesoft.hamster.eventnotifybot.model.core.Subscription;
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 public record StatusCommand(
         long chatId
 ) implements ExecutableCommand {
+
+    private static final Logger log = LoggerFactory.getLogger(StatusCommand.class);
 
     private static final String RESOURCE_FOLDER = "message/command";
 
@@ -23,11 +29,12 @@ public record StatusCommand(
 
     @Override
     public boolean execute(StorageService storageService, TelegramService telegramService) {
-        final String subscriptionsValue = Optional.of(storageService.getSubscriptions()
+        final Optional<List<Subscription>> nonEmptySubscriptions = Optional.of(storageService.getSubscriptions()
                         .stream()
                         .filter(subscription -> chatId == subscription.chatId())
                         .toList())
-                .filter(subscriptions -> !subscriptions.isEmpty())
+                .filter(subscriptions -> !subscriptions.isEmpty());
+        final String subscriptionsValue = nonEmptySubscriptions
                 .map(subscriptions -> subscriptions
                         .stream()
                         .map(subscription -> SUBSCRIPTION_TEMPLATE
@@ -46,6 +53,11 @@ public record StatusCommand(
                         .trim(),
                 false
         );
+        if (log.isTraceEnabled()) {
+            log.trace("Sent current subscriptions state to chat {}: {}", chatId, nonEmptySubscriptions);
+        } else {
+            log.debug("Sent current subscriptions state to chat {}", chatId);
+        }
         return true;
     }
 

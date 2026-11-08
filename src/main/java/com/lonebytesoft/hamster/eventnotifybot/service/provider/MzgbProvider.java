@@ -138,6 +138,7 @@ public class MzgbProvider implements Provider {
         if (games.isEmpty()) {
             log.warn("Empty Mzgb games list successfully fetched - maybe something is wrong?");
         }
+        log.trace("Mzgb games successfully fetched: {}", games);
         return Optional.ofNullable(jsonMapper.writeValueAsString(games));
     }
 

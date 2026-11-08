@@ -48,7 +48,7 @@ public class HttpService {
 
         private final Logger logger;
         private final String tag;
-        private boolean isBodyReadSafe;
+        private final boolean isBodyReadSafe;
 
         public HttpLogger(
                 final Logger logger,
@@ -73,22 +73,29 @@ public class HttpService {
         }
 
         public void log(final HttpRequest request) {
-            logger.debug("Fetching {}", tag);
-            logger.trace("Request {}: headers {}, content-length {}",
-                    tag,
-                    request.headers().map(),
-                    request.bodyPublisher()
-                            .map(HttpRequest.BodyPublisher::contentLength)
-                            .orElse(0L));
+            if (logger.isTraceEnabled()) {
+                logger.trace("Request {}: headers {}, content-length {}",
+                        tag,
+                        request.headers().map(),
+                        request.bodyPublisher()
+                                .map(HttpRequest.BodyPublisher::contentLength)
+                                .orElse(0L));
+            }
+            else {
+                logger.debug("Fetching {}", tag);
+            }
         }
 
         public void log(final HttpResponse<?> response) {
-            logger.debug("Fetched {}: HTTP {}", tag, response.statusCode());
-            logger.trace("Response {}: HTTP {}, headers {}{}",
-                    tag,
-                    response.statusCode(),
-                    response.headers().map(),
-                    isBodyReadSafe ? "\n" + response.body() : "");
+            if (logger.isTraceEnabled()) {
+                logger.trace("Response {}: HTTP {}, headers {}{}",
+                        tag,
+                        response.statusCode(),
+                        response.headers().map(),
+                        isBodyReadSafe ? "\n" + response.body() : "");
+            } else {
+                logger.debug("Fetched {}: HTTP {}", tag, response.statusCode());
+            }
         }
 
         public void log(final Throwable e) {

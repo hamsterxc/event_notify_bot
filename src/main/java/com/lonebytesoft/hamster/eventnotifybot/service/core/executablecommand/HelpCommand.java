@@ -3,12 +3,16 @@ package com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
 public record HelpCommand(
         long chatId
 ) implements ExecutableCommand {
+
+    private static final Logger log = LoggerFactory.getLogger(HelpCommand.class);
 
     private static final String REPOSITORY_PLACEHOLDER = "%REPOSITORY%";
     private static final String COMMIT_ID_PLACEHOLDER = "%COMMIT_ID%";
@@ -27,6 +31,7 @@ public record HelpCommand(
                 MESSAGE,
                 false
         );
+        log.debug("Sent help message to chat {}", chatId);
         return true;
     }
 

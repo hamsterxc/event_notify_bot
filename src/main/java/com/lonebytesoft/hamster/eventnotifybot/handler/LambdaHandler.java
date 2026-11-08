@@ -48,7 +48,7 @@ public class LambdaHandler {
                 try {
                     Thread.sleep(cyclePauseMillis);
                 } catch (InterruptedException e) {
-                    log.warn("Interrupted while waiting for {} ms", cyclePauseMillis, e);
+                    log.error("Interrupted while waiting between cycles for {} ms", cyclePauseMillis, e);
                     Thread.currentThread().interrupt();
                     return;
                 }

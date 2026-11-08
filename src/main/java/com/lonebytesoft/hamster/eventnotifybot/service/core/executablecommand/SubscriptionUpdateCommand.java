@@ -24,7 +24,6 @@ public record SubscriptionUpdateCommand(
     @Override
     public boolean execute(StorageService storageService, TelegramService telegramService) {
         if (!storageService.updateSubscription(getSubscription())) {
-            log.warn("Not updating a non-existent subscription: chat {}, provider '{}'", chatId, provider.name());
             return true;
         }
 
@@ -38,15 +37,22 @@ public record SubscriptionUpdateCommand(
                         TelegramService.MAX_MESSAGE_TEXT_LENGTH - reserved,
                         TelegramService.MAX_MESSAGE_TEXT_WITH_IMAGE_LENGTH - reserved
                 )
-                .ifPresent(providerView -> {
-                    telegramService.sendMessage(
-                            chatId,
-                            providerView.imageUrl(),
-                            template.replace(CONTENT_PLACEHOLDER, providerView.textHtml()),
-                            false
-                    );
-                    log.debug("Sent '{}' provider update to chat {}", provider.name(), chatId);
-                });
+                .ifPresentOrElse(
+                        providerView -> {
+                            telegramService.sendMessage(
+                                    chatId,
+                                    providerView.imageUrl(),
+                                    template.replace(CONTENT_PLACEHOLDER, providerView.textHtml()),
+                                    false
+                            );
+                            if (log.isTraceEnabled()) {
+                                log.trace("Sent '{}' provider update to chat {}: {}", provider.name(), chatId, providerView);
+                            } else {
+                                log.debug("Sent '{}' provider update to chat {}", provider.name(), chatId);
+                            }
+                        },
+                        () -> log.debug("No update for '{}' provider, sending nothing to chat {}", provider.name(), chatId)
+                );
 
         return true;
     }

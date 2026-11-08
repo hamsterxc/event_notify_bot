@@ -74,7 +74,7 @@ public class StorageService {
 
         final Collection<DynamoDbRecord> settingsRecords = records.getOrDefault(RecordType.SETTINGS, List.of());
         if (settingsRecords.size() > 1) {
-            log.warn("Multiple settings records fetched, using the latest: {}", settingsRecords);
+            log.info("Multiple settings records fetched, using the latest: {}", settingsRecords);
         }
         this.settings = new SettingsShadow(settingsRecords, jsonMapper);
 
@@ -85,7 +85,7 @@ public class StorageService {
 
         final Collection<DynamoDbRecord> unknownRecords = records.getOrDefault(RecordType.UNKNOWN, List.of());
         if (!unknownRecords.isEmpty()) {
-            log.warn("Records of unknown type fetched, ignoring: {}", unknownRecords);
+            log.info("Records of unknown type fetched, ignoring: {}", unknownRecords);
         }
         this.unknown = new UnknownShadow(unknownRecords);
 
@@ -117,10 +117,11 @@ public class StorageService {
         final int writeCost = writeRequests.isEmpty()
                 ? 0
                 : dynamoDbService.write(writeRequests); // 1 WCU has write-cost of 1
+        log.trace("Flushed to storage: {}", writeRequests);
         if (writeCost < writeCostWarnLimit) {
-            log.debug("Flushing to storage: {} write cost", writeCost);
+            log.debug("Flushed to storage: {} write cost", writeCost);
         } else {
-            log.warn("Flushing to storage: {} write cost, >={}% of limit", writeCost, WRITE_COST_WARN_LIMIT_PERCENTAGE);
+            log.warn("Flushed to storage: {} write cost, >={}% of limit", writeCost, WRITE_COST_WARN_LIMIT_PERCENTAGE);
         }
 
         return writeCost;
@@ -148,7 +149,9 @@ public class StorageService {
                 .map(SettingsRecord::properties)
                 .map(existingProperties -> Objects.equals(existingProperties, newProperties))
                 .orElse(false);
-        if (!settingsSimilar) {
+        if (settingsSimilar) {
+            log.debug("Settings similar, not updating");
+        } else {
             final SettingsRecord newSettings = new SettingsRecord(
                     existingSettings
                             .map(SettingsRecord::id)
@@ -157,6 +160,7 @@ public class StorageService {
                     newProperties
             );
             this.settings.put(newSettings);
+            log.debug("Updated settings: {}", newSettings);
         }
     }
 
@@ -167,8 +171,8 @@ public class StorageService {
                 .map(SettingsRecord::id)
                 .toList();
         if (!cleanupIds.isEmpty()) {
-            log.info("Cleaning up {} older settings records, leaving only the latest", cleanupIds.size());
             cleanupIds.forEach(this.settings::remove);
+            log.info("Cleaned up {} older settings records, leaving only the latest", cleanupIds.size());
         }
         return cleanupIds.size();
     }
@@ -199,16 +203,19 @@ public class StorageService {
                 command.command(),
                 command.parameters()
         );
-        this.commands.put(new CommandRecord(
+        final CommandRecord commandRecord = new CommandRecord(
                 UUID.randomUUID().toString(),
                 command.chatId(),
                 command.time(),
                 properties
-        ));
+        );
+        this.commands.put(commandRecord);
+        log.debug("Added command: {}", commandRecord);
     }
 
     public void removeCommand(final String id) {
         this.commands.remove(id);
+        log.debug("Removed command: id {}", id);
     }
 
     private int cleanupCommands(final int writeCostLimit) {
@@ -219,8 +226,8 @@ public class StorageService {
                 .map(CommandRecord::id)
                 .toList();
         if (!cleanupIds.isEmpty()) {
-            log.info("Cleaning up {} command records with missing chat id", cleanupIds.size());
             cleanupIds.forEach(this.commands::remove);
+            log.info("Cleaned up {} command records with missing chat id", cleanupIds.size());
         }
         return cleanupIds.size();
     }
@@ -243,12 +250,18 @@ public class StorageService {
                 .findFirst()
                 .map(ProviderStateRecord::id)
                 .orElseGet(() -> UUID.randomUUID().toString());
-        this.providerState.put(new ProviderStateRecord(
+        final ProviderStateRecord providerStateRecord = new ProviderStateRecord(
                 id,
                 providerState.provider(),
                 providerState.time(),
                 providerState.data()
-        ));
+        );
+        this.providerState.put(providerStateRecord);
+        if (log.isTraceEnabled()) {
+            log.trace("Updated provider state: {}", providerStateRecord);
+        } else {
+            log.debug("Updated provider '{}' state: id {}, next update time {}", providerState.provider(), id, providerState.time());
+        }
     }
 
     public Collection<Subscription> getSubscriptions() {
@@ -291,7 +304,7 @@ public class StorageService {
                 new SubscriptionProperties(cacheRef)
         );
         this.subscription.put(subscriptionRecord);
-        log.debug("Creating a new subscription: {}", subscriptionRecord);
+        log.debug("Created a new subscription: {}", subscriptionRecord);
         return true;
     }
 
@@ -318,7 +331,7 @@ public class StorageService {
                     time,
                     new SubscriptionProperties(cacheRef)
             )));
-            log.debug("Updating subscription: {}", subscription);
+            log.debug("Updated subscription: {}", subscription);
             return true;
         }
     }
@@ -341,7 +354,7 @@ public class StorageService {
             }
 
             subscriptionIds.forEach(this.subscription::remove);
-            log.debug("Removing subscription: chat {}, provider {}", chatId, provider);
+            log.debug("Removed subscriptions: chat {}, provider {}", chatId, provider);
             return true;
         }
     }
@@ -354,8 +367,8 @@ public class StorageService {
                 .map(SubscriptionRecord::id)
                 .toList();
         if (!cleanupIds.isEmpty()) {
-            log.info("Cleaning up {} subscription records with missing chat id", cleanupIds.size());
             cleanupIds.forEach(this.subscription::remove);
+            log.info("Cleaned up {} subscription records with missing chat id", cleanupIds.size());
         }
         return cleanupIds.size();
     }
@@ -410,7 +423,12 @@ public class StorageService {
                 data
         );
         this.subscriptionCache.put(subscriptionCacheRecord);
-        log.debug("Creating a new subscription cache entry: {}", subscriptionCacheRecord);
+        if (log.isTraceEnabled()) {
+            log.trace("Created a new subscription cache entry: {}", subscriptionCacheRecord);
+        } else {
+            log.debug("Created a new subscription cache entry: id {}, provider '{}', time {}",
+                    subscriptionCacheRecord.id(), provider, subscriptionCacheRecord.time());
+        }
         return id;
     }
 
@@ -439,8 +457,8 @@ public class StorageService {
                 .map(UnknownRecord::id)
                 .toList();
         if (!cleanupIds.isEmpty()) {
-            log.info("Cleaning up {} records of unknown type", cleanupIds.size());
             cleanupIds.forEach(this.unknown::remove);
+            log.info("Cleaned up {} records of unknown type", cleanupIds.size());
         }
         return cleanupIds.size();
     }

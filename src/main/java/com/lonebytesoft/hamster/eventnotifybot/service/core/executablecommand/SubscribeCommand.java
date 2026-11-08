@@ -5,12 +5,16 @@ import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.InstantSource;
 import java.util.Objects;
 import java.util.Optional;
 
 public final class SubscribeCommand extends AbstractProviderStateObserverCommand {
+
+    private static final Logger log = LoggerFactory.getLogger(SubscribeCommand.class);
 
     private static final String MESSAGE_TEMPLATE = ResourceUtils.read("message/command/subscribe.html").trim();
     private static final String DUPLICATE_SUBSCRIPTION_TEMPLATE = ResourceUtils.read("message/command/subscribe_duplicate_subscription.html").trim();
@@ -33,7 +37,8 @@ public final class SubscribeCommand extends AbstractProviderStateObserverCommand
     public boolean execute(StorageService storageService, TelegramService telegramService) {
         return getProviderData(storageService, provider.name())
                 .map(providerData -> {
-                    if (storageService.addSubscription(getSubscription(providerData))) {
+                    final Subscription subscription = getSubscription(providerData);
+                    if (storageService.addSubscription(subscription)) {
                         final String message = MESSAGE_TEMPLATE
                                 .replace(PROVIDER_PLACEHOLDER, provider.name());
                         telegramService.sendMessage(
@@ -42,12 +47,18 @@ public final class SubscribeCommand extends AbstractProviderStateObserverCommand
                                 message,
                                 false
                         );
+                        if (log.isTraceEnabled()) {
+                            log.trace("Sent subscription success message to chat {}, subscription: {}", chatId, subscription);
+                        } else {
+                            log.debug("Sent subscription success message to chat {}", chatId);
+                        }
                     } else {
                         getDuplicateSubscriptionCommand().execute(storageService, telegramService);
                     }
                     return true;
                 })
                 .orElseGet(() -> {
+                    log.debug("No actual '{}' provider data, updating the state first", provider.name());
                     getProviderUpdateCommand().execute(storageService, telegramService);
                     return false;
                 });

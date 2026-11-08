@@ -3,11 +3,15 @@ package com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.provider.Provider;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.InstantSource;
 import java.util.Objects;
 
 public class ShowCommand extends AbstractProviderStateObserverCommand {
+
+    private static final Logger log = LoggerFactory.getLogger(ShowCommand.class);
 
     private final long chatId;
     private final Provider provider;
@@ -37,9 +41,15 @@ public class ShowCommand extends AbstractProviderStateObserverCommand {
                             providerView.textHtml(),
                             false
                     );
+                    if (log.isTraceEnabled()) {
+                        log.trace("Sent provider '{}' state to chat {}: {}", provider.name(), chatId, providerView);
+                    } else {
+                        log.debug("Sent provider '{}' state to chat {}", provider.name(), chatId);
+                    }
                     return true;
                 })
                 .orElseGet(() -> {
+                    log.debug("No actual '{}' provider data, updating the state first", provider.name());
                     getProviderUpdateCommand().execute(storageService, telegramService);
                     return false;
                 });

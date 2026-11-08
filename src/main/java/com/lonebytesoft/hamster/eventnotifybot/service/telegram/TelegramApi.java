@@ -90,6 +90,12 @@ public class TelegramApi {
             final Request body,
             final TypeReference<TelegramResponse<Response>> typeReference
     ) {
+        if (log.isTraceEnabled()) {
+            log.trace("Calling method '{} {}', payload: {}", httpMethod, apiMethod, body);
+        } else {
+            log.debug("Calling method '{} {}'", httpMethod, apiMethod);
+        }
+
         final String endpoint = URL + "/bot" + token + "/" + apiMethod;
         final HttpRequest.BodyPublisher bodyPublisher = Optional.ofNullable(body)
                 .map(jsonMapper::writeValueAsString)
@@ -103,12 +109,12 @@ public class TelegramApi {
 
         final Optional<HttpResponse<String>> responseOptional = httpService.fetch(request);
         if (responseOptional.isEmpty()) {
-            log.warn("Could not call Telegram method '{} {}'", httpMethod, apiMethod);
+            log.warn("Could not call method '{} {}'", httpMethod, apiMethod);
             return Optional.empty();
         }
         final HttpResponse<String> response = responseOptional.get();
         if (!isSuccess(response)) {
-            log.warn("Unexpected Telegram method '{} {}' response code {}", httpMethod, apiMethod, response.statusCode());
+            log.warn("Unexpected method '{} {}' response code {}", httpMethod, apiMethod, response.statusCode());
             return Optional.empty();
         }
 
@@ -116,11 +122,11 @@ public class TelegramApi {
         try {
             telegramResponse = Optional.ofNullable(jsonMapper.readValue(response.body(), typeReference));
         } catch (JacksonException e) {
-            log.warn("Could not parse Telegram method '{} {}' response", httpMethod, apiMethod, e);
+            log.warn("Could not parse method '{} {}' response", httpMethod, apiMethod, e);
             return Optional.empty();
         }
         if (!telegramResponse.map(TelegramResponse::ok).orElse(false)) {
-            log.warn("Unsuccessful Telegram method '{} {}' response: {}",
+            log.warn("Unsuccessful method '{} {}' response: {}",
                     httpMethod,
                     apiMethod,
                     telegramResponse.map(jsonMapper::writeValueAsString).orElse(null)
@@ -128,6 +134,7 @@ public class TelegramApi {
             return Optional.empty();
         }
 
+        log.trace("Called method '{} {}': {}", httpMethod, apiMethod, telegramResponse);
         return telegramResponse;
     }
 

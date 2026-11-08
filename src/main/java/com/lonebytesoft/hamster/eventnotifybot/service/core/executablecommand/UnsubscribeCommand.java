@@ -4,6 +4,8 @@ import com.lonebytesoft.hamster.eventnotifybot.model.core.Subscription;
 import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.storage.core.StorageService;
 import com.lonebytesoft.hamster.eventnotifybot.service.telegram.TelegramService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.stream.Collectors;
@@ -12,6 +14,8 @@ public record UnsubscribeCommand(
         long chatId,
         String providerName
 ) implements ExecutableCommand {
+
+    private static final Logger log = LoggerFactory.getLogger(UnsubscribeCommand.class);
 
     private static final String RESOURCE_FOLDER = "message/command";
     private static final String MESSAGE_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/unsubscribe.html").trim();
@@ -66,6 +70,7 @@ public record UnsubscribeCommand(
                 MESSAGE_TEMPLATE.replace(PROVIDER_PLACEHOLDER, providerName),
                 false
         );
+        log.debug("Sent unsubscribe success message to chat {}", chatId);
     }
 
     /**

@@ -38,6 +38,7 @@ public class TelegramService {
     public List<Update> getUpdates(
             final Long lastUpdateId
     ) {
+        log.debug("Getting updates starting from {}", lastUpdateId);
         final List<Update> updates = new ArrayList<>();
 
         Optional<List<Update>> updatesResponse;
@@ -77,6 +78,11 @@ public class TelegramService {
             final String textHtml,
             final Boolean showLinkPreview
     ) {
+        if (log.isTraceEnabled()) {
+            log.trace("Sending message to chat {} (text length {}): image '{}', text '{}'", chatId, textHtml.length(), imageUrl, textHtml);
+        } else {
+            log.debug("Sending message to chat {} (text length {})", chatId, textHtml.length());
+        }
         return imageUrl == null
                 ? telegramApi.sendMessage(chatId, textHtml, SEND_MESSAGE_PARSE_MODE, showLinkPreview)
                 : telegramApi.sendPhoto(chatId, imageUrl, textHtml, SEND_MESSAGE_PARSE_MODE, showLinkPreview);

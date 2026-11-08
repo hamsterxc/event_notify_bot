@@ -59,7 +59,7 @@ public class CommandParsingService {
                 .map(matcher -> new MessageParts(matcher.group(1), matcher.group(2), matcher.group(4)))
                 .orElse(null);
         if (messageParts == null) {
-            log.debug("Irrelevant message received: {}", message);
+            log.trace("Irrelevant message received: {}", message);
             return Optional.empty();
         }
 

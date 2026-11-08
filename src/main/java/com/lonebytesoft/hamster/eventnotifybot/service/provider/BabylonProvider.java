@@ -139,6 +139,7 @@ public class BabylonProvider implements Provider {
         if (movies.isEmpty()) {
             log.warn("Empty Babylon movies list successfully fetched - maybe something is wrong?");
         }
+        log.trace("Babylon movies successfully fetched: {}", movies);
         return Optional.ofNullable(jsonMapper.writeValueAsString(movies));
     }
 
@@ -252,10 +253,13 @@ public class BabylonProvider implements Provider {
                     case ProviderDataChange.Delete<BabylonMovie> delete -> delete.oldData().datetime();
                 }))
                 .toList();
+        log.trace("Calculated Babylon movie changes, {} -> {}: {}", baseData, newData, changes);
 
-        return changes.isEmpty()
+        final Optional<ProviderView> diffView = changes.isEmpty()
                 ? Optional.empty()
                 : Optional.of(ViewBuilder.getDiffView(changes, limit, limitWithImage));
+        log.trace("Calculated Babylon movies diff view, {} -> {}: {}", baseData, newData, diffView);
+        return diffView;
     }
 
     private static class ViewBuilder {
@@ -515,7 +519,7 @@ public class BabylonProvider implements Provider {
 
             final String[] nonDescriptionParts = template.split(DESCRIPTION_PLACEHOLDER);
             if (nonDescriptionParts.length != 2) {
-                log.warn("Unexpected number of description placeholders ({}): {}", nonDescriptionParts.length, TEMPLATE);
+                log.warn("Unexpected number of description placeholders ({}): {}", nonDescriptionParts.length - 1, TEMPLATE);
                 return truncate(template, limit);
             }
 

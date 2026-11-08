@@ -29,12 +29,15 @@ public record ProviderUpdateCommand(
                                     .orElse(null),
                             data
                     ));
-                    log.info("Updated '{}' provider state, next update at {}",
-                            providerName,
-                            nextUpdateTime
-                                    .map(Instant::toString)
-                                    .orElse("(never)")
-                    );
+
+                    final String nextUpdate = nextUpdateTime
+                            .map(Instant::toString)
+                            .orElse("(never)");
+                    if (log.isTraceEnabled()) {
+                        log.trace("Updated '{}' provider state, next update at {}, data: {}", providerName, nextUpdate, data);
+                    } else {
+                        log.info("Updated '{}' provider state, next update at {}", providerName, nextUpdate);
+                    }
                 },
                 () -> log.warn("No data fetched for provider '{}', not updating provider state", providerName)
         );
