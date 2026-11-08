@@ -27,7 +27,7 @@ public class ProviderUpdateCommandTest {
     private final DynamoDbServiceMock dynamoDbService = new DynamoDbServiceMock();
     private final JsonMapper jsonMapper = new JsonMapper();
     private final InstantSource instantSource = InstantSource.fixed(Instant.parse("2026-01-01T12:00:00Z"));
-    private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, instantSource, 5);
+    private final StorageService storageService = new StorageService(dynamoDbService, jsonMapper, instantSource, 5, 5);
     private final TelegramApiMock telegramApi = new TelegramApiMock();
     private final TelegramService telegramService = new TelegramService(telegramApi);
     private final Provider provider = new ProviderMock("mock", "data", Instant.parse("2026-01-01T18:00:00Z"), "image-url", "view");

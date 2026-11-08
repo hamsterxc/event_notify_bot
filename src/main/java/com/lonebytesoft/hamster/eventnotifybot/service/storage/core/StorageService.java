@@ -37,13 +37,14 @@ public class StorageService {
 
     private static final Logger log = LoggerFactory.getLogger(StorageService.class);
 
-    private static final int WRITE_COST_WARN_LIMIT_PERCENTAGE = 80;
+    private static final int COST_WARN_LIMIT_PERCENTAGE = 80;
 
     private static final int BYTES_PER_WRITE_COST = 1000;
 
     private final DynamoDbService dynamoDbService;
     private final JsonMapper jsonMapper;
     private final InstantSource instantSource;
+    private final int readCostWarnLimit;
     private final int writeCostWarnLimit;
 
     private SettingsShadow settings = new SettingsShadow(List.of(), null);
@@ -57,16 +58,25 @@ public class StorageService {
             final DynamoDbService dynamoDbService,
             final JsonMapper jsonMapper,
             final InstantSource instantSource,
+            final int readCostLimit,
             final int writeCostLimit
     ) {
         this.dynamoDbService = dynamoDbService;
         this.jsonMapper = jsonMapper;
         this.instantSource = instantSource;
-        this.writeCostWarnLimit = (int) Math.ceil((double) writeCostLimit * WRITE_COST_WARN_LIMIT_PERCENTAGE / 100);
+        this.readCostWarnLimit = (int) Math.ceil((double) readCostLimit * COST_WARN_LIMIT_PERCENTAGE / 100);
+        this.writeCostWarnLimit = (int) Math.ceil((double) writeCostLimit * COST_WARN_LIMIT_PERCENTAGE / 100);
     }
 
     public int fetch() {
         final DynamoDbReadResponse dynamoDbReadResponse = dynamoDbService.read();
+        log.trace("Read from storage: {}", dynamoDbReadResponse);
+        final int readCost = dynamoDbReadResponse.consumedCapacity();
+        if (readCost < readCostWarnLimit) {
+            log.debug("Read from storage: {} read cost", readCost);
+        } else {
+            log.warn("Read from storage: {} read cost, >={}% of limit", readCost, COST_WARN_LIMIT_PERCENTAGE);
+        }
 
         final Map<RecordType, List<DynamoDbRecord>> records = dynamoDbReadResponse.records()
                 .stream()
@@ -89,7 +99,7 @@ public class StorageService {
         }
         this.unknown = new UnknownShadow(unknownRecords);
 
-        return dynamoDbReadResponse.consumedCapacity();
+        return readCost;
     }
 
     public int cleanup(final int writeCostLimit) {
@@ -121,7 +131,7 @@ public class StorageService {
         if (writeCost < writeCostWarnLimit) {
             log.debug("Flushed to storage: {} write cost", writeCost);
         } else {
-            log.warn("Flushed to storage: {} write cost, >={}% of limit", writeCost, WRITE_COST_WARN_LIMIT_PERCENTAGE);
+            log.warn("Flushed to storage: {} write cost, >={}% of limit", writeCost, COST_WARN_LIMIT_PERCENTAGE);
         }
 
         return writeCost;

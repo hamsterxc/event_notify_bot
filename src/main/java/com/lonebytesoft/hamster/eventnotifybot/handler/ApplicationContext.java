@@ -26,6 +26,7 @@ public class ApplicationContext {
     private static final Logger log = LoggerFactory.getLogger(ApplicationContext.class);
 
     private static final String DYNAMODB_TABLE_NAME = "event-notify-bot-table";
+    private static final int READ_COST_LIMIT = 20;
     private static final int WRITE_COST_LIMIT = 20;
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(1);
 
@@ -49,6 +50,7 @@ public class ApplicationContext {
                 dynamoDbService,
                 jsonMapper,
                 instantSource,
+                READ_COST_LIMIT,
                 WRITE_COST_LIMIT
         );
 
