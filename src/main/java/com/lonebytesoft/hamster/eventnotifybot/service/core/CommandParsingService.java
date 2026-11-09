@@ -3,6 +3,7 @@ package com.lonebytesoft.hamster.eventnotifybot.service.core;
 import com.lonebytesoft.hamster.eventnotifybot.model.core.Command;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Chat;
 import com.lonebytesoft.hamster.eventnotifybot.model.telegram.response.Message;
+import com.lonebytesoft.hamster.eventnotifybot.service.ResourceUtils;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.CommandType;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.ExecutableCommand;
 import com.lonebytesoft.hamster.eventnotifybot.service.core.executablecommand.HelpCommand;
@@ -138,7 +139,7 @@ public class CommandParsingService {
         if (command.parameters().isEmpty()) {
             return new HelpCommand(command.chatId());
         } else {
-            return new InvalidCommand(command.chatId(), "No parameters expected for command " + command.command());
+            return InvalidCommandBuilder.zeroParametersExpected(command.chatId(), command.command());
         }
     }
 
@@ -146,7 +147,7 @@ public class CommandParsingService {
         if (command.parameters().isEmpty()) {
             return new StatusCommand(command.chatId());
         } else {
-            return new InvalidCommand(command.chatId(), "No parameters expected for command " + command.command());
+            return InvalidCommandBuilder.zeroParametersExpected(command.chatId(), command.command());
         }
     }
 
@@ -154,12 +155,12 @@ public class CommandParsingService {
         if (command.parameters().size() == 1) {
             final Provider provider = providers.get(command.parameters().getFirst());
             if (provider == null) {
-                return new InvalidCommand(command.chatId(), "Unknown provider " + command.parameters().getFirst());
+                return InvalidCommandBuilder.unknownProvider(command.chatId(), command.parameters().getFirst());
             } else {
                 return new ShowCommand(command.chatId(), provider, instantSource);
             }
         } else {
-            return new InvalidCommand(command.chatId(), "Exactly 1 parameter expected for command " + command.command());
+            return InvalidCommandBuilder.oneParameterExpected(command.chatId(), command.command());
         }
     }
 
@@ -167,12 +168,12 @@ public class CommandParsingService {
         if (command.parameters().size() == 1) {
             final Provider provider = providers.get(command.parameters().getFirst());
             if (provider == null) {
-                return new InvalidCommand(command.chatId(), "Unknown provider " + command.parameters().getFirst());
+                return InvalidCommandBuilder.unknownProvider(command.chatId(), command.parameters().getFirst());
             } else {
                 return new SubscribeCommand(command.chatId(), provider, instantSource);
             }
         } else {
-            return new InvalidCommand(command.chatId(), "Exactly 1 parameter expected for command " + command.command());
+            return InvalidCommandBuilder.oneParameterExpected(command.chatId(), command.command());
         }
     }
 
@@ -181,7 +182,7 @@ public class CommandParsingService {
         if ((parametersCount == 0) || (parametersCount == 1)) {
             return new UnsubscribeCommand(command.chatId(), command.parameters().stream().findFirst().orElse(null));
         } else {
-            return new InvalidCommand(command.chatId(), "Exactly 0 or 1 parameters expected for command " + command.command());
+            return InvalidCommandBuilder.zeroOrOneParametersExpected(command.chatId(), command.command());
         }
     }
 
@@ -190,6 +191,48 @@ public class CommandParsingService {
             String address,
             String parameters
     ) {
+    }
+
+    private static class InvalidCommandBuilder {
+
+        private static final String RESOURCE_FOLDER = "message/command";
+
+        private static final String UNKNOWN_PROVIDER_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/invalid_unknown_provider.html").trim();
+        private static final String PROVIDER_PLACEHOLDER = "%PROVIDER%";
+
+        private static final String EXPECTED_ZERO_PARAMETERS_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/invalid_no_parameters_expected.html").trim();
+        private static final String EXPECTED_ONE_PARAMETER_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/invalid_one_parameter_expected.html").trim();
+        private static final String EXPECTED_ZERO_OR_ONE_PARAMETERS_TEMPLATE = ResourceUtils.read(RESOURCE_FOLDER + "/invalid_zero_or_one_parameters_expected.html").trim();
+        private static final String COMMAND_PLACEHOLDER = "%COMMAND%";
+
+        public static ExecutableCommand unknownProvider(final long chatId, final String provider) {
+            return new InvalidCommand(
+                    chatId,
+                    UNKNOWN_PROVIDER_TEMPLATE.replace(PROVIDER_PLACEHOLDER, provider)
+            );
+        }
+
+        public static ExecutableCommand zeroParametersExpected(final long chatId, final String command) {
+            return new InvalidCommand(
+                    chatId,
+                    EXPECTED_ZERO_PARAMETERS_TEMPLATE.replace(COMMAND_PLACEHOLDER, command)
+            );
+        }
+
+        public static ExecutableCommand oneParameterExpected(final long chatId, final String command) {
+            return new InvalidCommand(
+                    chatId,
+                    EXPECTED_ONE_PARAMETER_TEMPLATE.replace(COMMAND_PLACEHOLDER, command)
+            );
+        }
+
+        public static ExecutableCommand zeroOrOneParametersExpected(final long chatId, final String command) {
+            return new InvalidCommand(
+                    chatId,
+                    EXPECTED_ZERO_OR_ONE_PARAMETERS_TEMPLATE.replace(COMMAND_PLACEHOLDER, command)
+            );
+        }
+
     }
 
 }

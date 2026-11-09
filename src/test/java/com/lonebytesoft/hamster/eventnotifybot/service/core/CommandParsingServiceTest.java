@@ -350,7 +350,7 @@ public class CommandParsingServiceTest {
         assertEquals(
                 Optional.of(new InvalidCommand(
                         2L,
-                        "No parameters expected for command start"
+                        "No parameters expected for command <b>start</b>."
                 )),
                 commandParsingService.parseCommand(new Command(
                         null,
@@ -383,7 +383,7 @@ public class CommandParsingServiceTest {
         assertEquals(
                 Optional.of(new InvalidCommand(
                         2L,
-                        "No parameters expected for command help"
+                        "No parameters expected for command <b>help</b>."
                 )),
                 commandParsingService.parseCommand(new Command(
                         null,
@@ -416,7 +416,7 @@ public class CommandParsingServiceTest {
         assertEquals(
                 Optional.of(new InvalidCommand(
                         2L,
-                        "No parameters expected for command status"
+                        "No parameters expected for command <b>status</b>."
                 )),
                 commandParsingService.parseCommand(new Command(
                         null,
@@ -433,7 +433,7 @@ public class CommandParsingServiceTest {
         assertEquals(
                 Optional.of(new InvalidCommand(
                         2L,
-                        "Exactly 1 parameter expected for command show"
+                        "Exactly 1 parameter expected for command <b>show</b>."
                 )),
                 commandParsingService.parseCommand(new Command(
                         null,
@@ -468,7 +468,7 @@ public class CommandParsingServiceTest {
         assertEquals(
                 Optional.of(new InvalidCommand(
                         2L,
-                        "Unknown provider foo"
+                        "Unknown provider <b>foo</b>."
                 )),
                 commandParsingService.parseCommand(new Command(
                         null,
@@ -485,7 +485,7 @@ public class CommandParsingServiceTest {
         assertEquals(
                 Optional.of(new InvalidCommand(
                         2L,
-                        "Exactly 1 parameter expected for command show"
+                        "Exactly 1 parameter expected for command <b>show</b>."
                 )),
                 commandParsingService.parseCommand(new Command(
                         null,
@@ -502,7 +502,7 @@ public class CommandParsingServiceTest {
         assertEquals(
                 Optional.of(new InvalidCommand(
                         2L,
-                        "Exactly 1 parameter expected for command subscribe"
+                        "Exactly 1 parameter expected for command <b>subscribe</b>."
                 )),
                 commandParsingService.parseCommand(new Command(
                         null,
@@ -537,7 +537,7 @@ public class CommandParsingServiceTest {
         assertEquals(
                 Optional.of(new InvalidCommand(
                         2L,
-                        "Unknown provider foo"
+                        "Unknown provider <b>foo</b>."
                 )),
                 commandParsingService.parseCommand(new Command(
                         null,
@@ -554,7 +554,7 @@ public class CommandParsingServiceTest {
         assertEquals(
                 Optional.of(new InvalidCommand(
                         2L,
-                        "Exactly 1 parameter expected for command subscribe"
+                        "Exactly 1 parameter expected for command <b>subscribe</b>."
                 )),
                 commandParsingService.parseCommand(new Command(
                         null,
@@ -605,7 +605,7 @@ public class CommandParsingServiceTest {
         assertEquals(
                 Optional.of(new InvalidCommand(
                         2L,
-                        "Exactly 0 or 1 parameters expected for command unsubscribe"
+                        "Exactly 0 or 1 parameters expected for command <b>unsubscribe</b>."
                 )),
                 commandParsingService.parseCommand(new Command(
                         null,
