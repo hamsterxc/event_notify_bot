@@ -126,4 +126,12 @@ public final class SubscribeCommand extends AbstractProviderStateObserverCommand
         );
     }
 
+    @Override
+    public String toString() {
+        return "SubscribeCommand[chatId=%d, provider=%s]".formatted(
+                chatId,
+                provider.name()
+        );
+    }
+
 }

@@ -88,4 +88,12 @@ public class ShowCommand extends AbstractProviderStateObserverCommand {
         );
     }
 
+    @Override
+    public String toString() {
+        return "ShowCommand[chatId=%d, provider=%s]".formatted(
+                chatId,
+                provider.name()
+        );
+    }
+
 }
