@@ -39,6 +39,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.lonebytesoft.hamster.eventnotifybot.service.HttpService.isSuccess;
+import static com.lonebytesoft.hamster.eventnotifybot.service.StringUtils.truncate;
 
 public class BabylonProvider implements Provider {
 
@@ -429,7 +430,6 @@ public class BabylonProvider implements Provider {
         private static final DateTimeFormatter DATETIME_FORMAT_VIEW = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy, HH:mm").withZone(TIMEZONE);
 
         private static final int MIN_DESCRIPTION_LENGTH = 10;
-        private static final String ELLIPSIS = "...";
 
         public static String buildView(
                 final BabylonMovie babylonMovie,
@@ -538,16 +538,6 @@ public class BabylonProvider implements Provider {
                 return nonDescriptionParts[0] + description + nonDescriptionParts[1];
             } else {
                 return nonDescriptionParts[0] + truncate(description, possibleDescriptionLength - 1) + "\n" + nonDescriptionParts[1];
-            }
-        }
-
-        private static String truncate(final String s, final int limit) {
-            if (s.length() <= limit) {
-                return s;
-            } else {
-                return limit < ELLIPSIS.length()
-                        ? ""
-                        : s.substring(0, limit - ELLIPSIS.length()).trim() + ELLIPSIS;
             }
         }
 

@@ -27,6 +27,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.lonebytesoft.hamster.eventnotifybot.service.StringUtils.truncate;
+
 public class EventNotifyBotJobHandler implements JobHandler {
 
     private static final Logger log = LoggerFactory.getLogger(EventNotifyBotJobHandler.class);
@@ -289,7 +291,13 @@ public class EventNotifyBotJobHandler implements JobHandler {
                 } else {
                     if (remainingBudget == fullBudget) {
                         log.warn("Command execution estimated cost ({}) exceeds budget ({}), executing anyway since the full budget is still available: {}",
-                                cost, budget, command);
+                                cost,
+                                budget,
+                                log.isTraceEnabled()
+                                        ? command
+                                        : truncate(String.valueOf(command), 200) // truncating command's string representation: if its cost exceeds the budget, its value surely is too big to go into logs in full
+                        );
+
                         if (command.execute(storageService, telegramService)) {
                             onCompleteExecution.accept(entity);
                         } else {
