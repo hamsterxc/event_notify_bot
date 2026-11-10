@@ -60,7 +60,11 @@ public class DynamoDbService {
         final int consumedCapacity = (int) Math.ceil(consumedCapacities.stream()
                 .mapToDouble(ConsumedCapacity::capacityUnits)
                 .sum());
-        log.debug("Read {} items from DynamoDB, consumed {} RCU", items.size(), consumedCapacity);
+        if (log.isTraceEnabled()) {
+            log.trace("Read {} items from DynamoDB, consumed {} RCU: {}", items.size(), consumedCapacity, items);
+        } else {
+            log.debug("Read {} items from DynamoDB, consumed {} RCU", items.size(), consumedCapacity);
+        }
         return new DynamoDbReadResponse(
                 items.stream()
                         .map(DynamoDbRecord::new)
@@ -70,7 +74,11 @@ public class DynamoDbService {
     }
 
     public int write(final Collection<DynamoDbWriteRequest> writeRequests) {
-        log.debug("Executing {} write requests against DynamoDB", writeRequests.size());
+        if (log.isTraceEnabled()) {
+            log.trace("Executing {} write requests against DynamoDB: {}", writeRequests.size(), writeRequests);
+        } else {
+            log.debug("Executing {} write requests against DynamoDB", writeRequests.size());
+        }
         final List<WriteRequest> requests = writeRequests
                 .stream()
                 .map(DynamoDbWriteRequest::toDynamoDbRequest)

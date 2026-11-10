@@ -10,6 +10,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Optional;
 
+import static com.lonebytesoft.hamster.eventnotifybot.service.StringUtils.extractMessageChain;
+
 public class HttpService {
 
     private static final Logger log = LoggerFactory.getLogger(HttpService.class);
@@ -46,35 +48,35 @@ public class HttpService {
 
     private static class HttpLogger {
 
-        private final Logger logger;
+        private final Logger log;
         private final String tag;
         private final boolean isBodyReadSafe;
 
         public HttpLogger(
-                final Logger logger,
+                final Logger log,
                 final String tag,
                 final boolean isBodyReadSafe
         ) {
-            this.logger = logger;
+            this.log = log;
             this.tag = tag;
             this.isBodyReadSafe = isBodyReadSafe;
         }
 
         public HttpLogger(
-                final Logger logger,
+                final Logger log,
                 final HttpRequest request,
                 final boolean isBodyReadSafe
         ) {
             this(
-                    logger,
+                    log,
                     "%s %s".formatted(request.method(), request.uri()),
                     isBodyReadSafe
             );
         }
 
         public void log(final HttpRequest request) {
-            if (logger.isTraceEnabled()) {
-                logger.trace("Request {}: headers {}, content-length {}",
+            if (log.isTraceEnabled()) {
+                log.trace("Request {}: headers {}, content-length {}",
                         tag,
                         request.headers().map(),
                         request.bodyPublisher()
@@ -82,24 +84,24 @@ public class HttpService {
                                 .orElse(0L));
             }
             else {
-                logger.debug("Fetching {}", tag);
+                log.debug("Fetching {}", tag);
             }
         }
 
         public void log(final HttpResponse<?> response) {
-            if (logger.isTraceEnabled()) {
-                logger.trace("Response {}: HTTP {}, headers {}{}",
+            if (log.isTraceEnabled()) {
+                log.trace("Response {}: HTTP {}, headers {}{}",
                         tag,
                         response.statusCode(),
                         response.headers().map(),
                         isBodyReadSafe ? "\n" + response.body() : "");
             } else {
-                logger.debug("Fetched {}: HTTP {}", tag, response.statusCode());
+                log.debug("Fetched {}: HTTP {}", tag, response.statusCode());
             }
         }
 
         public void log(final Throwable e) {
-            logger.error("Failed fetching {}", tag, e);
+            log.error("Failed fetching {}: {}", tag, extractMessageChain(e));
         }
 
     }

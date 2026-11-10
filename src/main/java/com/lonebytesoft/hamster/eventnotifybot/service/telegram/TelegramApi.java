@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.lonebytesoft.hamster.eventnotifybot.service.HttpService.isSuccess;
+import static com.lonebytesoft.hamster.eventnotifybot.service.StringUtils.extractMessageChain;
 
 public class TelegramApi {
 
@@ -113,16 +114,17 @@ public class TelegramApi {
             return Optional.empty();
         }
         final HttpResponse<String> response = responseOptional.get();
+        final String responseBody = response.body();
         if (!isSuccess(response)) {
-            log.warn("Unexpected method '{} {}' response code {}", httpMethod, apiMethod, response.statusCode());
+            log.warn("Unexpected method '{} {}' response code {}: {}", httpMethod, apiMethod, response.statusCode(), responseBody);
             return Optional.empty();
         }
 
         final Optional<TelegramResponse<Response>> telegramResponse;
         try {
-            telegramResponse = Optional.ofNullable(jsonMapper.readValue(response.body(), typeReference));
+            telegramResponse = Optional.ofNullable(jsonMapper.readValue(responseBody, typeReference));
         } catch (JacksonException e) {
-            log.warn("Could not parse method '{} {}' response", httpMethod, apiMethod, e);
+            log.warn("Could not parse method '{} {}' response {}: {}", httpMethod, apiMethod, responseBody, extractMessageChain(e));
             return Optional.empty();
         }
         if (!telegramResponse.map(TelegramResponse::ok).orElse(false)) {

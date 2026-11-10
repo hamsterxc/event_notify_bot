@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.lonebytesoft.hamster.eventnotifybot.service.HttpService.isSuccess;
+import static com.lonebytesoft.hamster.eventnotifybot.service.StringUtils.extractMessageChain;
 
 public class MzgbProvider implements Provider {
 
@@ -72,7 +73,7 @@ public class MzgbProvider implements Provider {
         }
         final HttpResponse<String> startPageResponse = startPageResponseOptional.get();
         if (!isSuccess(startPageResponse)) {
-            log.warn("Unexpected starting page response code {}, returning empty", startPageResponse.statusCode());
+            log.warn("Unexpected starting page response code {}, returning empty: {}", startPageResponse.statusCode(), startPageResponse.body());
             return Optional.empty();
         }
 
@@ -93,7 +94,7 @@ public class MzgbProvider implements Provider {
         }
         final HttpResponse<String> dataResponse = dataResponseOptional.get();
         if (!isSuccess(dataResponse)) {
-            log.warn("Unexpected game data response code {}, returning empty", dataResponse.statusCode());
+            log.warn("Unexpected game data response code {}, returning empty: {}", dataResponse.statusCode(), dataResponse.body());
             return Optional.empty();
         }
 
@@ -101,7 +102,7 @@ public class MzgbProvider implements Provider {
         try {
             gameData = jsonMapper.readValue(dataResponse.body(), MzgbGameData.class);
         } catch (JacksonException e) {
-            log.warn("Could not parse game data, returning empty", e);
+            log.warn("Could not parse game data, returning empty: {}", extractMessageChain(e));
             return Optional.empty();
         }
 

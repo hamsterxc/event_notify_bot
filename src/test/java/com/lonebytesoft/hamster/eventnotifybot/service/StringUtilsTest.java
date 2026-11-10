@@ -1,8 +1,10 @@
 package com.lonebytesoft.hamster.eventnotifybot.service;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import static com.lonebytesoft.hamster.eventnotifybot.service.StringUtils.extractMessageChain;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class StringUtilsTest {
@@ -19,6 +21,22 @@ public class StringUtilsTest {
     })
     public void truncate(final String s, final int limit, final String expected) {
         assertEquals(expected, StringUtils.truncate(s, limit));
+    }
+
+    @Test
+    public void extractMessageChain_singleException() {
+        assertEquals(
+                "Generic exception",
+                extractMessageChain(new Exception("Generic exception"))
+        );
+    }
+
+    @Test
+    public void extractMessageChain_chainedExceptions() {
+        assertEquals(
+                "Exception first -> Exception second -> Exception third",
+                extractMessageChain(new IllegalStateException("Exception first", new IllegalArgumentException("Exception second", new NullPointerException("Exception third"))))
+        );
     }
 
 }

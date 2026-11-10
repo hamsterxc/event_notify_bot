@@ -39,6 +39,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.lonebytesoft.hamster.eventnotifybot.service.HttpService.isSuccess;
+import static com.lonebytesoft.hamster.eventnotifybot.service.StringUtils.extractMessageChain;
 import static com.lonebytesoft.hamster.eventnotifybot.service.StringUtils.truncate;
 
 public class BabylonProvider implements Provider {
@@ -95,7 +96,7 @@ public class BabylonProvider implements Provider {
         }
         final HttpResponse<String> response = responseOptional.get();
         if (!isSuccess(response)) {
-            log.warn("Unexpected movies page response code {}, returning empty", response.statusCode());
+            log.warn("Unexpected movies page response code {}, returning empty: {}", response.statusCode(), response.body());
             return Optional.empty();
         }
 
@@ -112,7 +113,7 @@ public class BabylonProvider implements Provider {
                                         try {
                                             return DATETIME_FORMAT_INPUT.parse(datetime);
                                         } catch (DateTimeParseException e) {
-                                            log.warn("Could not parse '{}' movie date '{}': {}", id, datetime, e.getMessage());
+                                            log.warn("Could not parse '{}' movie date '{}': {}", id, datetime, extractMessageChain(e));
                                             return null;
                                         }
                                     })
@@ -162,7 +163,7 @@ public class BabylonProvider implements Provider {
         try {
             movies = jsonMapper.readValue(data, DATA_TYPE);
         } catch (JacksonException e) {
-            log.warn("Could not parse movies: {}", data);
+            log.warn("Could not parse movies, data {}: {}", data, extractMessageChain(e));
             return Optional.of(ViewBuilder.getStateErrorView());
         }
 
@@ -180,7 +181,7 @@ public class BabylonProvider implements Provider {
             baseMovies = new HashSet<>(jsonMapper.readValue(baseData, DATA_TYPE));
             newMovies = new HashSet<>(jsonMapper.readValue(newData, DATA_TYPE));
         } catch (JacksonException e) {
-            log.warn("Could not parse movies: {} -> {}", baseData, newData);
+            log.warn("Could not parse movies, {} -> {}: {}", baseData, newData, extractMessageChain(e));
             return Optional.empty();
         }
 
@@ -519,7 +520,7 @@ public class BabylonProvider implements Provider {
 
             final String[] nonDescriptionParts = template.split(DESCRIPTION_PLACEHOLDER);
             if (nonDescriptionParts.length != 2) {
-                log.warn("Unexpected number of description placeholders ({}): {}", nonDescriptionParts.length - 1, TEMPLATE);
+                log.warn("Unexpected number of description placeholders ({}): {}", nonDescriptionParts.length - 1, template);
                 return truncate(template, limit);
             }
 
