@@ -24,8 +24,10 @@ public class ApplicationContextMock extends ApplicationContext {
             final CommandParsingService commandParsingService,
             final InstantSource instantSource,
             final Collection<Provider> providers,
+            final int readCostLimit,
             final int writeCostLimit
     ) {
+        super(readCostLimit, writeCostLimit);
         this.storageService = storageService;
         this.telegramService = telegramService;
         this.commandParsingService = commandParsingService;

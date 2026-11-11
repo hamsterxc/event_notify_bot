@@ -12,13 +12,20 @@ import java.time.Duration;
 
 public class LocalRun {
 
+    private static final int PROVISIONED_RCU = 20;
+    private static final int PROVISIONED_WCU = 20;
+
     private static final Duration GLOBAL_TIMEOUT = Duration.ofMinutes(1);
     private static final Duration EXECUTION_BUFFER = Duration.ofSeconds(2);
     private static final Duration CYCLE_PAUSE = Duration.ofSeconds(1);
     private static final Duration CYCLE_DURATION = Duration.ofSeconds(2);
 
     static void main(String[] args) {
-        final ApplicationContext applicationContext = new ApplicationContext();
+        // see com.lonebytesoft.hamster.eventnotifybot.handler.AwsLambdaRequestHandler#applicationContext
+        final ApplicationContext applicationContext = new ApplicationContext(
+                PROVISIONED_RCU * ((int) GLOBAL_TIMEOUT.toSeconds()),
+                PROVISIONED_WCU * ((int) CYCLE_PAUSE.toSeconds())
+        );
         applicationContext.initialize();
 
         new LambdaHandler(

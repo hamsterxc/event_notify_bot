@@ -26,8 +26,6 @@ public class ApplicationContext {
     private static final Logger log = LoggerFactory.getLogger(ApplicationContext.class);
 
     private static final String DYNAMODB_TABLE_NAME = "event-notify-bot-table";
-    private static final int READ_COST_LIMIT = 20;
-    private static final int WRITE_COST_LIMIT = 20;
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(1);
 
     private final StorageService storageService;
@@ -35,13 +33,18 @@ public class ApplicationContext {
     private final CommandParsingService commandParsingService;
     private final InstantSource instantSource;
     private final Collection<Provider> providers;
+    private final int writeCostLimit;
 
-    public ApplicationContext() {
+    public ApplicationContext(
+            final int readCostLimit,
+            final int writeCostLimit
+    ) {
         final JsonMapper jsonMapper = JsonMapper.builder()
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .build();
         this.instantSource = InstantSource.system();
 
+        this.writeCostLimit = writeCostLimit;
         final DynamoDbService dynamoDbService = new DynamoDbService(
                 DynamoDbClient.create(),
                 DYNAMODB_TABLE_NAME
@@ -50,8 +53,8 @@ public class ApplicationContext {
                 dynamoDbService,
                 jsonMapper,
                 instantSource,
-                READ_COST_LIMIT,
-                WRITE_COST_LIMIT
+                readCostLimit,
+                writeCostLimit
         );
 
         final HttpService httpService = new HttpService(HTTP_TIMEOUT);
@@ -105,7 +108,7 @@ public class ApplicationContext {
     }
 
     public int getWriteCostLimit() {
-        return WRITE_COST_LIMIT;
+        return writeCostLimit;
     }
 
 }

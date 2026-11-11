@@ -52,6 +52,7 @@ public class EventNotifyBotJobHandlerTest {
             commandParsingService,
             instantSource,
             providers,
+            READ_COST_LIMIT,
             WRITE_COST_LIMIT
     ));
 
